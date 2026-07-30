@@ -1,13 +1,69 @@
 #define _GNU_SOURCE
+#include <asm/prctl.h>
 #include <errno.h>
 #include <pthread.h>
 #include <sched.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/syscall.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <common.h>
+
+// ---------------------------------------------------------------------------
+// Darwin thread-specific data (%gs)
+// ---------------------------------------------------------------------------
+// On x86_64 macOS the per-thread data block is reached through the %gs segment:
+// %gs:0x00 is the pthread self pointer, %gs:0x18 the mach thread port, and the compiler
+// inlines direct `mov %gs:N, reg` loads all over libc/libpthread headers. Linux keeps
+// its own TLS in %fs and leaves the %gs base at 0, so every one of those inlined loads
+// dereferences a small absolute address and segfaults.
+//
+// Give each thread a zeroed TSD block and point %gs at it. glibc never touches %gs on
+// x86_64, so this is invisible to the host runtime.
+
+#define DARWIN_TSD_SLOTS 512
+#define DARWIN_TSD_SLOT_SELF 0
+#define DARWIN_TSD_SLOT_ERRNO 1
+#define DARWIN_TSD_SLOT_MACH_THREAD_SELF 3
+
+static _Thread_local void **_darwin_tsd = NULL;
+
+void darwin_tsd_init_thread(void) {
+  if (_darwin_tsd) return;
+  void **tsd = calloc(DARWIN_TSD_SLOTS, sizeof(void *));
+  if (!tsd) return;
+  tsd[DARWIN_TSD_SLOT_SELF] = (void *)pthread_self();
+  tsd[DARWIN_TSD_SLOT_ERRNO] = (void *)__errno_location();
+  tsd[DARWIN_TSD_SLOT_MACH_THREAD_SELF] = (void *)(uintptr_t)syscall(SYS_gettid);
+  if (syscall(SYS_arch_prctl, ARCH_SET_GS, (unsigned long)tsd) != 0) {
+    fprintf(stderr, "[tsd] ARCH_SET_GS failed: %d\n", errno);
+    free(tsd);
+    return;
+  }
+  _darwin_tsd = tsd;
+}
+
+// The loader runs the game on the thread that loaded us, so cover it at library load.
+__attribute__((constructor)) static void darwin_tsd_init_main(void) {
+  darwin_tsd_init_thread();
+}
+
+// Trampoline so every game thread gets a %gs block before it runs any Mach-O code.
+struct darwin_thread_start {
+  void *(*start_routine)(void *);
+  void *arg;
+};
+
+static void *darwin_thread_entry(void *raw) {
+  struct darwin_thread_start start = *(struct darwin_thread_start *)raw;
+  free(raw);
+  darwin_tsd_init_thread();
+  return start.start_routine(start.arg);
+}
 
 typedef struct $darwin$pthread_cond_s {
   // uint64_t sig;
@@ -175,8 +231,12 @@ int $darwin$pthread_attr_destroy($darwin$pthread_attr_t *attr) {
 }
 
 int $darwin$pthread_attr_getinheritsched($darwin$pthread_attr_t *attr, int *inherit) {
-  // NOTE: size is good
-  return pthread_attr_getinheritsched(pthread_attr_to_linux(attr), inherit);
+  // NOTE: darwin PTHREAD_INHERIT_SCHED == 1, PTHREAD_EXPLICIT_SCHED == 2;
+  // linux has them the other way around at 0 and 1.
+  int native = 0;
+  int const ret = pthread_attr_getinheritsched(pthread_attr_to_linux(attr), &native);
+  if (inherit) *inherit = native == PTHREAD_EXPLICIT_SCHED ? 2 : 1;
+  return ret;
 }
 
 int $darwin$pthread_attr_getschedparam($darwin$pthread_attr_t *attr, struct sched_param *param) {
@@ -195,18 +255,33 @@ int $darwin$pthread_attr_setdetachstate($darwin$pthread_attr_t *attr, int detach
 }
 
 int $darwin$pthread_attr_setinheritsched($darwin$pthread_attr_t *attr, int inherit) {
-  // NOTE: size is good
-  return pthread_attr_setinheritsched(pthread_attr_to_linux(attr), inherit);
+  // NOTE: darwin PTHREAD_INHERIT_SCHED == 1, PTHREAD_EXPLICIT_SCHED == 2; linux uses
+  // 0 and 1. Passing the darwin value straight through turned "inherit" into
+  // "explicit", which then applied the (equally mistranslated) policy below and made
+  // pthread_create fail with EPERM.
+  //
+  // Linux won't hand out realtime policies to an unprivileged process anyway, so always
+  // ask for inherited scheduling and let setschedpolicy/setschedparam be advisory.
+  (void)inherit;
+  return pthread_attr_setinheritsched(pthread_attr_to_linux(attr), PTHREAD_INHERIT_SCHED);
 }
 
 int $darwin$pthread_attr_setschedparam($darwin$pthread_attr_t *attr, const struct sched_param *param) {
-  // NOTE: size is good, darwin 8, gnu 4
-  return pthread_attr_setschedparam(pthread_attr_to_linux(attr), param);
+  // NOTE: darwin priorities run 0..47 (default 31); under SCHED_OTHER linux only accepts
+  // 0, and we can't get a realtime policy unprivileged. Accept and ignore.
+  (void)attr;
+  (void)param;
+  return 0;
 }
 
 int $darwin$pthread_attr_setschedpolicy($darwin$pthread_attr_t *attr, int policy) {
-  // NOTE: size is good
-  return pthread_attr_setschedpolicy(pthread_attr_to_linux(attr), policy);
+  // NOTE: darwin SCHED_OTHER == 1, SCHED_RR == 2, SCHED_FIFO == 4; linux has
+  // SCHED_OTHER == 0, SCHED_FIFO == 1, SCHED_RR == 2. Passing the value through mapped
+  // darwin's SCHED_OTHER onto linux's SCHED_FIFO, which an unprivileged process cannot
+  // use -- pthread_create then failed with EPERM and the thread silently never existed.
+  // We can't honour realtime policies here at all, so pin everything to SCHED_OTHER.
+  (void)policy;
+  return pthread_attr_setschedpolicy(pthread_attr_to_linux(attr), SCHED_OTHER);
 }
 
 int $darwin$pthread_attr_setstacksize($darwin$pthread_attr_t *attr, size_t stacksize) {
@@ -256,7 +331,19 @@ int $darwin$pthread_cond_wait($darwin$pthread_cond_t *cond, $darwin$pthread_mute
 
 int $darwin$pthread_create(pthread_t *thread, $darwin$pthread_attr_t *attr, void *(*start_routine)(void *), void *arg) {
   // NOTE: size is good
-  return pthread_create(thread, pthread_attr_to_linux(attr), start_routine, arg);
+  struct darwin_thread_start *start = malloc(sizeof(*start));
+  if (!start) return EAGAIN;
+  start->start_routine = start_routine;
+  start->arg = arg;
+
+  int const ret = pthread_create(thread, pthread_attr_to_linux(attr), &darwin_thread_entry, start);
+  // A silently-failed worker thread is almost impossible to diagnose from the game side,
+  // so never let this go unreported.
+  if (ret != 0) {
+    fprintf(stderr, "[pthread] pthread_create failed: %d\n", ret);
+    free(start);
+  }
+  return ret;
 }
 
 int $darwin$pthread_detach(pthread_t th) {
