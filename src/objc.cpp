@@ -188,7 +188,7 @@ namespace objc::raw {
 }
 
 static void objc::raw::dump_info(loader::Image* image) {
-  for (auto p : image->find_data_section<protocol_t*>("__objc_protolist")) {
+  for (auto p : image->find_section<protocol_t*>("__objc_protolist")) {
     printf("protocol %s {\n", p->name);
     if (p->protocols)
       for (size_t i = 0; i != p->protocols->count; ++i) {
@@ -217,10 +217,10 @@ static void objc::raw::dump_info(loader::Image* image) {
     printf("};\n\n");
   }
 
-  for (auto c : image->find_data_section<class_t*>("__objc_classlist")) {
+  for (auto c : image->find_section<class_t*>("__objc_classlist")) {
     auto const p = c->data();
     printf("class %s {\n", p->name);
-    for (auto s : image->find_data_section<class_t*>("__objc_classlist"))
+    for (auto s : image->find_section<class_t*>("__objc_classlist"))
       if (s == c->isa) printf("\tsuper %s;", s->isa->data()->name);
     if (p->base_protocols)
       for (size_t i = 0; i != p->base_protocols->count; ++i) {
@@ -241,9 +241,9 @@ static void objc::raw::dump_info(loader::Image* image) {
     printf("};\n\n");
   }
 
-  for (auto r : image->find_data_section<raw::sel_ref_t>("__objc_selrefs")) printf("SEL %s;\n", r.name);
+  for (auto r : image->find_section<raw::sel_ref_t>("__objc_selrefs")) printf("SEL %s;\n", r.name);
 
-  for (auto r : image->find_data_section<raw::msg_ref_t>("__objc_msgrefs")) printf("MSG %s;\n", r.sel.name);
+  for (auto r : image->find_section<raw::msg_ref_t>("__objc_msgrefs")) printf("MSG %s;\n", r.sel.name);
 }
 
 struct objc::raw::Converter {
@@ -611,16 +611,16 @@ void objc::fixup_image(loader::Image* image) {
   objc::raw::Converter converter(image->slide);
   converter.import_classes(image->object.bind);
   converter.import_classes(image->object.bind_lazy);
-  converter.convert_protocol_list(image->find_data_section<uintptr_t>("__objc_protolist"));
-  converter.convert_class_list(image->find_data_section<uintptr_t>("__objc_classlist"));
-  converter.convert_cfstrings(image->find_data_section<raw::cfstring_t>("__cfstring"));
+  converter.convert_protocol_list(image->find_section<uintptr_t>("__objc_protolist"));
+  converter.convert_class_list(image->find_section<uintptr_t>("__objc_classlist"));
+  converter.convert_cfstrings(image->find_section<raw::cfstring_t>("__cfstring"));
   // TODO: __objc_catlist
 
-  converter.convert_protocol_refs(image->find_data_section<uintptr_t>("__objc_protorefs"));
-  converter.convert_class_refs(image->find_data_section<uintptr_t>("__objc_classrefs"));
-  converter.convert_class_refs(image->find_data_section<uintptr_t>("__objc_superrefs"));
-  converter.convert_sel_refs(image->find_data_section<raw::sel_ref_t>("__objc_selrefs"));
-  converter.convert_msg_refs(image->find_data_section<raw::msg_ref_t>("__objc_msgrefs"));
+  converter.convert_protocol_refs(image->find_section<uintptr_t>("__objc_protorefs"));
+  converter.convert_class_refs(image->find_section<uintptr_t>("__objc_classrefs"));
+  converter.convert_class_refs(image->find_section<uintptr_t>("__objc_superrefs"));
+  converter.convert_sel_refs(image->find_section<raw::sel_ref_t>("__objc_selrefs"));
+  converter.convert_msg_refs(image->find_section<raw::msg_ref_t>("__objc_msgrefs"));
   // TODO: init ?
 }
 

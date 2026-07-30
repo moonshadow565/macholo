@@ -34,3 +34,12 @@ add_executable(macholo
 )
 target_link_libraries(macholo PUBLIC stub asound)
 
+# Parses like the loader (FAT slice + Object::read) but executes nothing; no stub/GNUstep deps.
+add_executable(macholo-dump
+    src/common.hpp
+    src/common.cpp
+    src/macho.hpp
+    src/macho.cpp
+    src/dump.cpp
+)
+

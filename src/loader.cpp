@@ -29,8 +29,12 @@ loader::Image* loader::Image::load(char const* name) {
   size_t size = fd.size();
   assert_that(size != 0);
 
-  auto address = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd.get(), 0);
-  assert_that(address != nullptr && (std::intptr_t)address != -1);
+  auto file = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd.get(), 0);
+  assert_that(file != nullptr && (std::intptr_t)file != -1);
+
+  // FAT slice offsets are page-aligned, safe to use as both mmap offset and image base.
+  auto const sl = macho::find_slice(file, size);
+  auto address = (void*)((char*)file + sl.offset);
 
   auto object = macho::Object::read(address);
 
@@ -41,9 +45,9 @@ loader::Image* loader::Image::load(char const* name) {
 
   // Try to load at prefered addres...
   // FIXME: this is horibly wrong.
-  void* remaped = ::mmap((void*)text->vmaddr, size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd.get(), 0);
+  void* remaped = ::mmap((void*)text->vmaddr, sl.size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd.get(), sl.offset);
   if (remaped != nullptr && (std::intptr_t)remaped != -1) {
-    ::munmap(address, size);
+    ::munmap(file, size);
     address = remaped;
   }
 
@@ -105,7 +109,7 @@ void loader::Image::bind() {
 }
 
 void loader::Image::init() {
-  for (auto const& func : find_data_section<void (*)(void)>("__mod_init_func")) {
+  for (auto const& func : find_section<void (*)(void)>("__mod_init_func")) {
     (*func)();
   }
   ak::patch_sink(this);

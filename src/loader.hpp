@@ -9,10 +9,12 @@ namespace loader {
         uintptr_t slide;
         macho::Object object;
 
+        // NOTE: searches all segments — modern binaries split sections like __mod_init_func,
+        // __objc_classlist and __cfstring into __DATA_CONST.
         template<typename T>
-        slice<T> find_data_section(std::string_view name) {
-            if (auto seg = object.data_segment()) {
-                for (auto const& sec : seg->sections) {
+        slice<T> find_section(std::string_view name) {
+            for (auto const& seg : object.segments) {
+                for (auto const& sec : seg.sections) {
                     if (sec.name != name) {
                         continue;
                     }

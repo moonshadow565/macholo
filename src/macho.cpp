@@ -23,6 +23,8 @@ namespace macho::raw {
   enum cpu_type_t : std::uint32_t {
     CPU_TYPE_X86 = 7,
     CPU_TYPE_X86_64 = CPU_TYPE_X86 | 0x01000000,
+    CPU_TYPE_ARM = 12,
+    CPU_TYPE_ARM64 = CPU_TYPE_ARM | 0x01000000,
   };
 
   enum cpu_subtype_t : std::uint32_t {};
@@ -41,6 +43,8 @@ namespace macho::raw {
   enum MAGIC : uint32_t {
     FAT_MAGIC = 0xcafebabe,
     FAT_CIGAM = 0xbebafeca,
+    FAT_MAGIC_64 = 0xcafebabf,
+    FAT_CIGAM_64 = 0xbfbafeca,
     MH_MAGIC = 0xfeedface,
     MH_CIGAM = 0xcefaedfe,
     MH_MAGIC_64 = 0xfeedfacf,
@@ -1098,4 +1102,41 @@ macho::Object macho::Object::read(void* image) {
   }
 
   return object;
+}
+
+macho::Slice macho::find_slice(void const* file, size_t size) {
+  using namespace macho::raw;
+
+#if defined(__x86_64__)
+  constexpr auto host_cputype = CPU_TYPE_X86_64;
+#elif defined(__aarch64__)
+  constexpr auto host_cputype = CPU_TYPE_ARM64;
+#else
+#error "unsupported host architecture"
+#endif
+
+  assert_that(size >= sizeof(uint32_t));
+  uint32_t magic;
+  memcpy(&magic, file, sizeof(magic));
+
+  if (magic != FAT_MAGIC && magic != FAT_CIGAM) {
+    assert_that(magic != FAT_MAGIC_64 && magic != FAT_CIGAM_64);  // fat_arch_64 unsupported
+    return {0, size};
+  }
+
+  // FAT headers are big-endian on disk.
+  auto const swap = magic == FAT_CIGAM ? +[](uint32_t v) { return __builtin_bswap32(v); }  //
+                                       : +[](uint32_t v) { return v; };
+  auto const fat = (fat_header const*)file;
+  auto const nfat_arch = swap(fat->nfat_arch);
+  assert_that(size >= sizeof(fat_header) + nfat_arch * sizeof(fat_header::arch));
+  for (uint32_t i = 0; i != nfat_arch; ++i) {
+    auto const& arch = fat->archs[i];
+    if (swap(arch.cputype) != host_cputype) continue;
+    auto const offset = swap(arch.offset);
+    auto const arch_size = swap(arch.size);
+    assert_that(offset <= size && arch_size <= size - offset);
+    return {offset, arch_size};
+  }
+  panic("no Mach-O slice for host architecture");
 }

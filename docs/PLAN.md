@@ -59,15 +59,13 @@ direct-mapped gl* functions on 16.3).
 ## Phases
 
 ### Phase 0 — hygiene + tooling (small, high leverage)
-- [ ] FAT header slicing (port from customlolskins-manager); select slice by host arch.
-- [ ] Section search across **all** segments — `__DATA_CONST` (16.3+) holds
-      `__mod_init_func`, `__objc_classlist`, `__objc_protolist`, `__cfstring`;
-      `find_data_section()` only searches `__DATA`, so initializers + objc registration
-      silently no-op on new binaries.
-- [ ] Audit tool: `macholo --audit <binary>` → import surface (per-dylib symbols, objc
-      classes/sels) diffed against implemented surface. Turns "will game X run?" into a
-      printed to-do list. Parsing already exists; `docs/surface-*/` are manual prototypes
-      of its output.
+- [x] FAT header slicing (`macho::find_slice`, cslol-manager–style); selects slice by
+      host arch, loader maps at slice offset. Verified on 14.8 (thin) + 16.3/16.15 (FAT).
+- [x] Section search across **all** segments — `find_section()` (né `find_data_section`)
+      now finds `__mod_init_func`/`__objc_classlist`/`__cfstring` in `__DATA_CONST`.
+- [ ] Audit tool: `macholo-dump` (src/dump.cpp) parses + prints segments/binds with
+      counts matching llvm-objdump; still to add: per-dylib attribution, objc class/sel
+      surface, diff against implemented stubs (`docs/surface-*/` are the target output).
 - [ ] Podman dep build; `cmake -B build && cmake --build build` works on Fedora 44.
 
 ### Phase 1 — regression baseline on 14.8

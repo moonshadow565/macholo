@@ -134,6 +134,15 @@ namespace macho {
     std::optional<StubAndResolver> stub_and_resolver;
   };
 
+  // Location of the host-architecture image within a (possibly FAT) file.
+  struct Slice {
+    size_t offset;
+    size_t size;
+  };
+
+  // For FAT files returns the slice matching the host architecture, for thin files {0, size}.
+  Slice find_slice(void const* file, size_t size);
+
   struct Error {
     char const* msg{};
     size_t info{};
