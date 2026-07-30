@@ -150,3 +150,37 @@ int $darwin$chdir(const char* path) {
     return 0;
   return chdir(path);
 }
+
+// copyfile(3) -- Darwin's file copy helper. We only ever need plain data copies.
+typedef void *copyfile_state_t;
+static char copyfile_state_handle[1];
+
+copyfile_state_t copyfile_state_alloc(void) { return copyfile_state_handle; }
+
+int copyfile_state_free(copyfile_state_t s) { return 0; }
+
+int copyfile(const char *from, const char *to, copyfile_state_t state, uint32_t flags) {
+  if (!from || !to) return -1;
+  int in = open(from, O_RDONLY);
+  if (in < 0) return -1;
+  struct stat64 st;
+  if (fstat64(in, &st) != 0) st.st_mode = 0644;
+  int out = open(to, O_WRONLY | O_CREAT | O_TRUNC, st.st_mode & 0777);
+  if (out < 0) {
+    close(in);
+    return -1;
+  }
+  int ret = 0;
+  char buf[65536];
+  for (;;) {
+    ssize_t n = read(in, buf, sizeof(buf));
+    if (n == 0) break;
+    if (n < 0 || write(out, buf, (size_t)n) != n) {
+      ret = -1;
+      break;
+    }
+  }
+  close(in);
+  close(out);
+  return ret;
+}

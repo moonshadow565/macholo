@@ -33,3 +33,9 @@ struct $darwin$passwd *$darwin$getpwuid(uid_t uid) {
   }
   return &lazy;
 }
+
+// backtrace_from_fp(void *startfp, void **array, int size) -- crash reporting only.
+// We never produce Darwin backtraces, so report zero frames.
+int backtrace_from_fp(void *startfp, void **array, int size) {
+  return 0;
+}

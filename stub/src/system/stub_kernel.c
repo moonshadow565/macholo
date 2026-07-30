@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <common.h>
 
@@ -71,8 +72,80 @@ void host_set_exception_ports() {
   panic("host_set_exception_ports");
 }
 
+// mach's vm_statistics64_data_t, in the layout host_statistics64(HOST_VM_INFO64) fills.
+struct vm_statistics64 {
+  uint32_t free_count;
+  uint32_t active_count;
+  uint32_t inactive_count;
+  uint32_t wire_count;
+  uint64_t zero_fill_count;
+  uint64_t reactivations;
+  uint64_t pageins;
+  uint64_t pageouts;
+  uint64_t faults;
+  uint64_t cow_faults;
+  uint64_t lookups;
+  uint64_t hits;
+  uint64_t purges;
+  uint32_t purgeable_count;
+  uint32_t speculative_count;
+  uint64_t decompressions;
+  uint64_t compressions;
+  uint64_t swapins;
+  uint64_t swapouts;
+  uint32_t compressor_page_count;
+  uint32_t throttled_count;
+  uint32_t external_page_count;
+  uint32_t internal_page_count;
+  uint64_t total_uncompressed_pages_in_compressor;
+};
+
+#define HOST_LOAD_INFO 1
+#define HOST_VM_INFO 2
+#define HOST_CPU_LOAD_INFO 3
+#define HOST_VM_INFO64 4
+
+// Reports real page counts. Returning zeroes here makes the client believe the machine
+// has no memory at all, which is a bad starting point for any streaming budget.
+static void fill_vm_statistics(struct vm_statistics64 *out) {
+  memset(out, 0, sizeof(*out));
+  long const free_pages = sysconf(_SC_AVPHYS_PAGES);
+  long const total_pages = sysconf(_SC_PHYS_PAGES);
+  out->free_count = free_pages > 0 ? (uint32_t)free_pages : 0;
+  if (total_pages > 0 && free_pages > 0 && total_pages > free_pages) {
+    out->active_count = (uint32_t)((total_pages - free_pages) / 2);
+    out->inactive_count = (uint32_t)((total_pages - free_pages) / 4);
+    out->wire_count = (uint32_t)((total_pages - free_pages) / 4);
+  }
+}
+
 int host_statistics(void *host_priv, int flavor, void *host_info_out, unsigned *host_info_outCnt) {
-  // TODO
+  if (!host_info_out || !host_info_outCnt) return KERN_INVALID_ARGUMENT;
+  size_t const size = (size_t)*host_info_outCnt * 4;
+  memset(host_info_out, 0, size);
+  if (flavor == HOST_VM_INFO) {
+    struct vm_statistics64 stats;
+    fill_vm_statistics(&stats);
+    // 32-bit vm_statistics shares the first four counters with the 64-bit variant.
+    memcpy(host_info_out, &stats, size < 16 ? size : 16);
+  }
+  return KERN_SUCCESS;
+}
+
+int host_statistics64(void *host_priv, int flavor, void *host_info_out, unsigned *host_info_outCnt) {
+  if (!host_info_out || !host_info_outCnt) return KERN_INVALID_ARGUMENT;
+  size_t const size = (size_t)*host_info_outCnt * 4;
+  memset(host_info_out, 0, size);
+  if (flavor == HOST_VM_INFO64) {
+    struct vm_statistics64 stats;
+    fill_vm_statistics(&stats);
+    memcpy(host_info_out, &stats, size < sizeof(stats) ? size : sizeof(stats));
+  }
+  return KERN_SUCCESS;
+}
+
+int host_page_size(void *host, uintptr_t *out_page_size) {
+  if (out_page_size) *out_page_size = 4096;
   return KERN_SUCCESS;
 }
 
