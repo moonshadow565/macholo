@@ -1,0 +1,409 @@
+AIR intrinsic / metadata census - League of Legends Metal shader caches
+========================================================================================================
+payload chunk-stream files scanned : 6217 (2389 TOC3.0 tables skipped)
+metallib blobs total               : 206412
+unique metallib blobs (sha1)       : 193263
+unique LLVM bitcode modules (sha1) : 193263
+dedupe ratio                       : 6.37% removed
+
+per-version metallib blob counts:
+  14.8-metal     unique modules containing: 57143
+  16.3-metal     unique modules containing: 68054
+  16.15-metal    unique modules containing: 68318
+
+=== air.* intrinsics (83 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+air.sample_texture_2d.v4f32                      184955  95.7%        195030  14.8/16.3/16.15  VF-
+air.dot.v3f32                                    165030  85.4%        174653  14.8/16.3/16.15  VF-
+air.fast_clamp.f32                               156617  81.0%        164323  14.8/16.3/16.15  VF-
+air.discard_fragment                             146349  75.7%        155185  14.8/16.3/16.15  -F-
+air.mix.v3f32                                    143741  74.4%        150651  14.8/16.3/16.15  VF-
+air.fast_rsqrt.f32                               138302  71.6%        146016  14.8/16.3/16.15  VF-
+air.mix.f32                                      119698  61.9%        125535  14.8/16.3/16.15  VF-
+air.convert.f.f32.u.i1                           113150  58.5%        117869  14.8/16.3/16.15  VF-
+air.mix.v4f32                                    109814  56.8%        112497  14.8/16.3/16.15  VF-
+air.convert.s.i32.f.f32                          102103  52.8%        105800  14.8/16.3/16.15  VF-
+air.fast_clamp.v3f32                              98693  51.1%        102059  14.8/16.3/16.15  VF-
+air.fmax.f32                                      98597  51.0%        103389  16.3/16.15       VF-
+air.fast_sqrt.f32                                 98322  50.9%        102593  14.8/16.3/16.15  VF-
+air.dot.v4f32                                     95907  49.6%        101950  14.8/16.3/16.15  VF-
+air.fast_clamp.v2f32                              83801  43.4%         86902  14.8/16.3/16.15  VF-
+air.all.v2i1                                      78313  40.5%         81498  14.8/16.3/16.15  -F-
+air.fast_fabs.v3f32                               64785  33.5%         66857  14.8/16.3/16.15  VF-
+air.fast_rint.f32                                 64580  33.4%         66180  16.3/16.15       VF-
+air.convert.u.i32.f.f32                           64519  33.4%         66119  16.3/16.15       -F-
+air.sample_texture_2d_array.v4f32                 64332  33.3%         65932  16.3/16.15       -F-
+air.fast_powr.f32                                 63159  32.7%         64655  16.3/16.15       VF-
+air.fmin.f32                                      62281  32.2%         64867  16.3/16.15       VF-
+air.sample_compare_depth_2d.f32                   58632  30.3%         61597  14.8/16.3/16.15  -F-
+air.fast_fabs.f32                                 57092  29.5%         58882  14.8/16.3/16.15  VF-
+air.read_texture_3d.u.v4i32                       56003  29.0%         58525  16.3/16.15       -F-
+air.fast_saturate.f32                             49506  25.6%         51115  14.8             VF-
+air.fmax.v3f32                                    47934  24.8%         48958  16.3/16.15       -F-
+air.fmax.v2f32                                    44697  23.1%         45697  16.3/16.15       -F-
+air.fast_powr.v3f32                               44598  23.1%         45598  16.3/16.15       -F-
+air.sample_texture_cube_array.v4f32               43912  22.7%         44912  16.3/16.15       -F-
+air.fast_fract.v3f32                              41698  21.6%         42811  14.8/16.3/16.15  VF-
+air.fast_exp2.f32                                 40668  21.0%         41727  14.8/16.3/16.15  -F-
+air.read_texture_2d.u.v4i32                       39880  20.6%         40880  16.3/16.15       -F-
+air.convert.f.f32.u.i32                           39846  20.6%         40846  16.3/16.15       -F-
+air.fast_fmax.f32                                 36421  18.8%         37366  14.8             VF-
+air.sample_compare_depth_cube.f32                 34665  17.9%         35981  14.8/16.3/16.15  -F-
+air.fast_exp.f32                                  34536  17.9%         37110  14.8/16.3/16.15  -F-
+air.fast_sin.f32                                  34031  17.6%         34716  14.8/16.3/16.15  VF-
+air.read_texture_2d.v4f32                         27461  14.2%         29049  16.3/16.15       -F-
+air.fast_saturate.v2f32                           27162  14.1%         27827  14.8             -F-
+air.fast_pow.f32                                  23232  12.0%         23801  14.8             VF-
+air.dfdx.v3f32                                    22783  11.8%         23563  14.8/16.3/16.15  -F-
+air.dfdy.v3f32                                    22783  11.8%         23563  14.8/16.3/16.15  -F-
+air.fast_saturate.v3f32                           19489  10.1%         19687  14.8             VF-
+air.fast_cos.f32                                  17616   9.1%         17645  14.8/16.3/16.15  VF-
+air.dot.v2f32                                     17145   8.9%         17203  14.8/16.3/16.15  VF-
+air.fast_fmin.f32                                 13959   7.2%         14191  14.8             VF-
+air.sample_texture_cube.v4f32                     12697   6.6%         12833  14.8/16.3/16.15  -F-
+air.fast_fract.v2f32                               9956   5.2%          9956  14.8/16.3/16.15  VF-
+air.fast_floor.f32                                 8808   4.6%          8809  14.8/16.3/16.15  VF-
+air.fast_ceil.f32                                  8117   4.2%          8131  14.8/16.3/16.15  VF-
+air.convert.s.i32.u.i1                             7220   3.7%          7680  14.8/16.3/16.15  VF-
+air.fast_fract.f32                                 7188   3.7%          7202  14.8/16.3/16.15  VF-
+air.fast_powr.v4f32                                6777   3.5%          6789  16.3/16.15       -F-
+air.convert.f.f32.s.i32                            6174   3.2%          6174  14.8/16.3/16.15  VF-
+air.fast_clamp.v4f32                               5643   2.9%          5643  14.8/16.3/16.15  -F-
+air.mix.v2f32                                      3178   1.6%          3178  14.8/16.3/16.15  VF-
+air.fast_fmax.v3f32                                2926   1.5%          2926  14.8             -F-
+air.fast_pow.v3f32                                 2868   1.5%          2868  14.8             -F-
+air.fma.v4f32                                      2662   1.4%          3282  16.3/16.15       V--
+air.fma.v3f32                                      2644   1.4%          3264  16.3/16.15       V--
+air.fast_fmax.v2f32                                2526   1.3%          2526  14.8             -F-
+air.fmin.v3f32                                     2473   1.3%          2473  16.3/16.15       -F-
+air.fast_saturate.v4f32                            1786   0.9%          1786  14.8             -F-
+air.atan2.f32                                      1354   0.7%          1354  16.3/16.15       VF-
+air.sign.f32                                       1298   0.7%          1298  14.8/16.3/16.15  -F-
+air.fast_fmod.f32                                  1157   0.6%          1158  14.8/16.3/16.15  VF-
+air.any.v4i1                                       1034   0.5%          1046  16.3/16.15       -F-
+air.fast_atan2.f32                                  951   0.5%           951  14.8             VF-
+air.fast_floor.v2f32                                948   0.5%           948  14.8/16.3/16.15  -F-
+air.any.v3i1                                        900   0.5%           900  16.15            -F-
+air.fma.f32                                         836   0.4%           858  16.3/16.15       V--
+air.fast_sin.v2f32                                  826   0.4%           826  14.8/16.3/16.15  -F-
+air.fast_fmin.v3f32                                 784   0.4%           784  14.8             -F-
+air.fast_pow.v4f32                                  206   0.1%           206  14.8             -F-
+air.fast_sqrt.v3f32                                 170   0.1%           170  16.3/16.15       -F-
+air.fast_sin.v3f32                                  122   0.1%           122  14.8/16.3/16.15  V--
+air.fast_fabs.v2f32                                  14   0.0%            14  16.3/16.15       V--
+air.dfdx.f32                                          4   0.0%             4  16.3/16.15       -F-
+air.dfdy.f32                                          4   0.0%             4  16.3/16.15       -F-
+air.sample_texture_3d.v4f32                           3   0.0%             3  14.8/16.3/16.15  -F-
+air.all.v3i1                                          2   0.0%             2  16.3/16.15       -F-
+air.fast_asin.f32                                     1   0.0%             1  16.15            -F-
+
+=== llvm.* intrinsics (2 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+llvm.memcpy.p0.p0.i64                                 2   0.0%             2  16.15            -F-
+llvm.memset.p0.i64                                    2   0.0%             2  16.3/16.15       -F-
+
+=== module-level named metadata (7 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+air.compile_options                              193263 100.0%        206412  14.8/16.3/16.15  VF-
+air.language_version                             193263 100.0%        206412  14.8/16.3/16.15  VF-
+air.version                                      193263 100.0%        206412  14.8/16.3/16.15  VF-
+llvm.ident                                       193263 100.0%        206412  14.8/16.3/16.15  VF-
+llvm.module.flags                                193263 100.0%        206412  14.8/16.3/16.15  VF-
+air.fragment                                     186027  96.3%        196385  14.8/16.3/16.15  -F-
+air.vertex                                         7236   3.7%         10027  14.8/16.3/16.15  V--
+
+=== air.* metadata strings (25 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+air.compile.denorms_disable                      193263 100.0%        206412  14.8/16.3/16.15  VF-
+air.compile.fast_math_enable                     193263 100.0%        206412  14.8/16.3/16.15  VF-
+air.compile.framebuffer_fetch_disable            193263 100.0%        206412  14.8/16.3/16.15  VF-
+air.arg_type_name                                193262 100.0%        206411  14.8/16.3/16.15  VF-
+air.arg_name                                     193260 100.0%        206408  14.8/16.3/16.15  VF-
+air.location_index                               193245 100.0%        206181  14.8/16.3/16.15  VF-
+air.arg_type_align_size                          192631  99.7%        204623  14.8/16.3/16.15  VF-
+air.arg_type_size                                192631  99.7%        204623  14.8/16.3/16.15  VF-
+air.buffer                                       192631  99.7%        204623  14.8/16.3/16.15  VF-
+air.buffer_size                                  192631  99.7%        204623  14.8/16.3/16.15  VF-
+air.read                                         192631  99.7%        204623  14.8/16.3/16.15  VF-
+air.struct_type_info                             192631  99.7%        204623  14.8/16.3/16.15  VF-
+air.sample                                       186124  96.3%        196247  14.8/16.3/16.15  VF-
+air.texture                                      186124  96.3%        196247  14.8/16.3/16.15  VF-
+air.sampler                                      186108  96.3%        196231  14.8/16.3/16.15  VF-
+air.render_target                                186026  96.3%        196384  14.8/16.3/16.15  -F-
+air.center                                       185955  96.2%        196118  14.8/16.3/16.15  -F-
+air.fragment_input                               185952  96.2%        196115  14.8/16.3/16.15  -F-
+air.perspective                                  185952  96.2%        196115  14.8/16.3/16.15  -F-
+air.position                                      64946  33.6%         69799  14.8/16.3/16.15  VF-
+air.no_perspective                                57710  29.9%         59772  14.8/16.3/16.15  -F-
+air.vertex_input                                   7236   3.7%         10027  14.8/16.3/16.15  V--
+air.vertex_output                                  7219   3.7%         10006  14.8/16.3/16.15  V--
+air.front_facing                                    268   0.1%           268  16.3/16.15       -F-
+air.vertex_id                                        16   0.0%            16  16.3/16.15       V--
+
+=== metal:: struct types in module (7 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+matrix                                           170322  88.1%        180985  14.8/16.3/16.15  VF-
+sampler                                           53929  27.9%         55922  14.8             -F-
+texture2d                                         53901  27.9%         55894  14.8             -F-
+depth2d                                           15636   8.1%         16289  14.8             -F-
+depthcube                                          8907   4.6%          9150  14.8             -F-
+texturecube                                        6948   3.6%          6948  14.8             -F-
+texture3d                                             2   0.0%             2  14.8             -F-
+
+=== target triples (1 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+air64-apple-macosx10.11.0                        193263 100.0%        206412  14.8/16.3/16.15  VF-
+
+=== air.version (1 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+1.8.0                                            193263 100.0%        206412  14.8/16.3/16.15  VF-
+
+=== air.language_version (1 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+!"Metal".1.1.0                                   193263 100.0%        206412  14.8/16.3/16.15  VF-
+
+=== non-air/non-llvm declared functions (0 distinct) ===
+name                                          uniq_mods    pct  permutations  versions         stage
+--------------------------------------------------------------------------------------------------------
+
+
+=== IRIDIUM STATIC COVERAGE ===
+Iridium (darlinghq/indium @8423a7d) implements 13 air.* intrinsics:
+  air.convert.f.v2f32.u.v2i32              used by       0 modules (  0.0%)
+  air.convert.f.v4f16.f.v4f32              used by       0 modules (  0.0%)
+  air.convert.f.v4f32.f.v4f16              used by       0 modules (  0.0%)
+  air.dot.v3f32                            used by  165030 modules ( 85.4%)
+  air.dot.v4f32                            used by   95907 modules ( 49.6%)
+  air.fast_fmax.f32                        used by   36421 modules ( 18.8%)
+  air.fast_pow.f32                         used by   23232 modules ( 12.0%)
+  air.fast_rsqrt.f32                       used by  138302 modules ( 71.6%)
+  air.fast_saturate.f32                    used by   49506 modules ( 25.6%)
+  air.fast_sqrt.f32                        used by   98322 modules ( 50.9%)
+  air.sample_texture_2d.v4f16              used by       0 modules (  0.0%)
+  air.sample_texture_2d.v4f32              used by  184955 modules ( 95.7%)
+  air.sample_texture_cube.v4f16            used by       0 modules (  0.0%)
+
+modules whose ENTIRE air.* intrinsic set is covered: 2575 / 193263 (1.332%)
+  (of which use no air.* intrinsic at all: 685)
+
+--- UNCOVERED air.* intrinsics, ranked by unique modules needing them ---
+intrinsic                                     uniq_mods    pct  permutations  versions
+------------------------------------------------------------------------------------------------
+air.fast_clamp.f32                               156617  81.0%        164323  14.8/16.3/16.15
+air.discard_fragment                             146349  75.7%        155185  14.8/16.3/16.15
+air.mix.v3f32                                    143741  74.4%        150651  14.8/16.3/16.15
+air.mix.f32                                      119698  61.9%        125535  14.8/16.3/16.15
+air.convert.f.f32.u.i1                           113150  58.5%        117869  14.8/16.3/16.15
+air.mix.v4f32                                    109814  56.8%        112497  14.8/16.3/16.15
+air.convert.s.i32.f.f32                          102103  52.8%        105800  14.8/16.3/16.15
+air.fast_clamp.v3f32                              98693  51.1%        102059  14.8/16.3/16.15
+air.fmax.f32                                      98597  51.0%        103389  16.3/16.15
+air.fast_clamp.v2f32                              83801  43.4%         86902  14.8/16.3/16.15
+air.all.v2i1                                      78313  40.5%         81498  14.8/16.3/16.15
+air.fast_fabs.v3f32                               64785  33.5%         66857  14.8/16.3/16.15
+air.fast_rint.f32                                 64580  33.4%         66180  16.3/16.15
+air.convert.u.i32.f.f32                           64519  33.4%         66119  16.3/16.15
+air.sample_texture_2d_array.v4f32                 64332  33.3%         65932  16.3/16.15
+air.fast_powr.f32                                 63159  32.7%         64655  16.3/16.15
+air.fmin.f32                                      62281  32.2%         64867  16.3/16.15
+air.sample_compare_depth_2d.f32                   58632  30.3%         61597  14.8/16.3/16.15
+air.fast_fabs.f32                                 57092  29.5%         58882  14.8/16.3/16.15
+air.read_texture_3d.u.v4i32                       56003  29.0%         58525  16.3/16.15
+air.fmax.v3f32                                    47934  24.8%         48958  16.3/16.15
+air.fmax.v2f32                                    44697  23.1%         45697  16.3/16.15
+air.fast_powr.v3f32                               44598  23.1%         45598  16.3/16.15
+air.sample_texture_cube_array.v4f32               43912  22.7%         44912  16.3/16.15
+air.fast_fract.v3f32                              41698  21.6%         42811  14.8/16.3/16.15
+air.fast_exp2.f32                                 40668  21.0%         41727  14.8/16.3/16.15
+air.read_texture_2d.u.v4i32                       39880  20.6%         40880  16.3/16.15
+air.convert.f.f32.u.i32                           39846  20.6%         40846  16.3/16.15
+air.sample_compare_depth_cube.f32                 34665  17.9%         35981  14.8/16.3/16.15
+air.fast_exp.f32                                  34536  17.9%         37110  14.8/16.3/16.15
+air.fast_sin.f32                                  34031  17.6%         34716  14.8/16.3/16.15
+air.read_texture_2d.v4f32                         27461  14.2%         29049  16.3/16.15
+air.fast_saturate.v2f32                           27162  14.1%         27827  14.8
+air.dfdx.v3f32                                    22783  11.8%         23563  14.8/16.3/16.15
+air.dfdy.v3f32                                    22783  11.8%         23563  14.8/16.3/16.15
+air.fast_saturate.v3f32                           19489  10.1%         19687  14.8
+air.fast_cos.f32                                  17616   9.1%         17645  14.8/16.3/16.15
+air.dot.v2f32                                     17145   8.9%         17203  14.8/16.3/16.15
+air.fast_fmin.f32                                 13959   7.2%         14191  14.8
+air.sample_texture_cube.v4f32                     12697   6.6%         12833  14.8/16.3/16.15
+air.fast_fract.v2f32                               9956   5.2%          9956  14.8/16.3/16.15
+air.fast_floor.f32                                 8808   4.6%          8809  14.8/16.3/16.15
+air.fast_ceil.f32                                  8117   4.2%          8131  14.8/16.3/16.15
+air.convert.s.i32.u.i1                             7220   3.7%          7680  14.8/16.3/16.15
+air.fast_fract.f32                                 7188   3.7%          7202  14.8/16.3/16.15
+air.fast_powr.v4f32                                6777   3.5%          6789  16.3/16.15
+air.convert.f.f32.s.i32                            6174   3.2%          6174  14.8/16.3/16.15
+air.fast_clamp.v4f32                               5643   2.9%          5643  14.8/16.3/16.15
+air.mix.v2f32                                      3178   1.6%          3178  14.8/16.3/16.15
+air.fast_fmax.v3f32                                2926   1.5%          2926  14.8
+air.fast_pow.v3f32                                 2868   1.5%          2868  14.8
+air.fma.v4f32                                      2662   1.4%          3282  16.3/16.15
+air.fma.v3f32                                      2644   1.4%          3264  16.3/16.15
+air.fast_fmax.v2f32                                2526   1.3%          2526  14.8
+air.fmin.v3f32                                     2473   1.3%          2473  16.3/16.15
+air.fast_saturate.v4f32                            1786   0.9%          1786  14.8
+air.atan2.f32                                      1354   0.7%          1354  16.3/16.15
+air.sign.f32                                       1298   0.7%          1298  14.8/16.3/16.15
+air.fast_fmod.f32                                  1157   0.6%          1158  14.8/16.3/16.15
+air.any.v4i1                                       1034   0.5%          1046  16.3/16.15
+air.fast_atan2.f32                                  951   0.5%           951  14.8
+air.fast_floor.v2f32                                948   0.5%           948  14.8/16.3/16.15
+air.any.v3i1                                        900   0.5%           900  16.15
+air.fma.f32                                         836   0.4%           858  16.3/16.15
+air.fast_sin.v2f32                                  826   0.4%           826  14.8/16.3/16.15
+air.fast_fmin.v3f32                                 784   0.4%           784  14.8
+air.fast_pow.v4f32                                  206   0.1%           206  14.8
+air.fast_sqrt.v3f32                                 170   0.1%           170  16.3/16.15
+air.fast_sin.v3f32                                  122   0.1%           122  14.8/16.3/16.15
+air.fast_fabs.v2f32                                  14   0.0%            14  16.3/16.15
+air.dfdx.f32                                          4   0.0%             4  16.3/16.15
+air.dfdy.f32                                          4   0.0%             4  16.3/16.15
+air.sample_texture_3d.v4f32                           3   0.0%             3  14.8/16.3/16.15
+air.all.v3i1                                          2   0.0%             2  16.3/16.15
+air.fast_asin.f32                                     1   0.0%             1  16.15
+
+--- greedy coverage growth (add uncovered intrinsics in usage order) ---
++air.fast_clamp.f32                         ->    2790 modules fully covered (  1.44%)
++air.discard_fragment                       ->    6277 modules fully covered (  3.25%)
++air.mix.v3f32                              ->    6730 modules fully covered (  3.48%)
++air.mix.f32                                ->   10591 modules fully covered (  5.48%)
++air.convert.f.f32.u.i1                     ->   11859 modules fully covered (  6.14%)
++air.mix.v4f32                              ->   15326 modules fully covered (  7.93%)
++air.convert.s.i32.f.f32                    ->   15326 modules fully covered (  7.93%)
++air.fast_clamp.v3f32                       ->   18637 modules fully covered (  9.64%)
++air.fmax.f32                               ->   20729 modules fully covered ( 10.73%)
++air.fast_clamp.v2f32                       ->   21587 modules fully covered ( 11.17%)
++air.all.v2i1                               ->   21587 modules fully covered ( 11.17%)
++air.fast_fabs.v3f32                        ->   21587 modules fully covered ( 11.17%)
++air.fast_rint.f32                          ->   21589 modules fully covered ( 11.17%)
++air.convert.u.i32.f.f32                    ->   21589 modules fully covered ( 11.17%)
++air.sample_texture_2d_array.v4f32          ->   21628 modules fully covered ( 11.19%)
++air.fast_powr.f32                          ->   26101 modules fully covered ( 13.51%)
++air.fmin.f32                               ->   29721 modules fully covered ( 15.38%)
++air.sample_compare_depth_2d.f32            ->   33444 modules fully covered ( 17.30%)
++air.fast_fabs.f32                          ->   33626 modules fully covered ( 17.40%)
++air.read_texture_3d.u.v4i32                ->   35984 modules fully covered ( 18.62%)
++air.fmax.v3f32                             ->   37132 modules fully covered ( 19.21%)
++air.fmax.v2f32                             ->   37132 modules fully covered ( 19.21%)
++air.fast_powr.v3f32                        ->   37198 modules fully covered ( 19.25%)
++air.sample_texture_cube_array.v4f32        ->   37198 modules fully covered ( 19.25%)
++air.fast_fract.v3f32                       ->   38493 modules fully covered ( 19.92%)
++air.fast_exp2.f32                          ->   38493 modules fully covered ( 19.92%)
++air.read_texture_2d.u.v4i32                ->   38511 modules fully covered ( 19.93%)
++air.convert.f.f32.u.i32                    ->   49807 modules fully covered ( 25.77%)
++air.sample_compare_depth_cube.f32          ->   52578 modules fully covered ( 27.21%)
++air.fast_exp.f32                           ->   59519 modules fully covered ( 30.80%)
++air.fast_sin.f32                           ->   63991 modules fully covered ( 33.11%)
++air.read_texture_2d.v4f32                  ->   80235 modules fully covered ( 41.52%)
++air.fast_saturate.v2f32                    ->   85845 modules fully covered ( 44.42%)
++air.dfdx.v3f32                             ->   85845 modules fully covered ( 44.42%)
++air.dfdy.v3f32                             ->   99178 modules fully covered ( 51.32%)
++air.fast_saturate.v3f32                    ->  110621 modules fully covered ( 57.24%)
++air.fast_cos.f32                           ->  114067 modules fully covered ( 59.02%)
++air.dot.v2f32                              ->  123735 modules fully covered ( 64.02%)
++air.fast_fmin.f32                          ->  131977 modules fully covered ( 68.29%)
++air.sample_texture_cube.v4f32              ->  140670 modules fully covered ( 72.79%)
++air.fast_fract.v2f32                       ->  144584 modules fully covered ( 74.81%)
++air.fast_floor.f32                         ->  149123 modules fully covered ( 77.16%)
++air.fast_ceil.f32                          ->  151683 modules fully covered ( 78.49%)
++air.convert.s.i32.u.i1                     ->  152182 modules fully covered ( 78.74%)
++air.fast_fract.f32                         ->  156942 modules fully covered ( 81.21%)
++air.fast_powr.v4f32                        ->  162281 modules fully covered ( 83.97%)
++air.convert.f.f32.s.i32                    ->  167044 modules fully covered ( 86.43%)
++air.fast_clamp.v4f32                       ->  172435 modules fully covered ( 89.22%)
++air.mix.v2f32                              ->  174875 modules fully covered ( 90.49%)
++air.fast_fmax.v3f32                        ->  174875 modules fully covered ( 90.49%)
++air.fast_pow.v3f32                         ->  175217 modules fully covered ( 90.66%)
++air.fma.v4f32                              ->  175235 modules fully covered ( 90.67%)
++air.fma.v3f32                              ->  176947 modules fully covered ( 91.56%)
++air.fast_fmax.v2f32                        ->  179473 modules fully covered ( 92.86%)
++air.fmin.v3f32                             ->  181662 modules fully covered ( 94.00%)
++air.fast_saturate.v4f32                    ->  183286 modules fully covered ( 94.84%)
++air.atan2.f32                              ->  184297 modules fully covered ( 95.36%)
++air.sign.f32                               ->  185595 modules fully covered ( 96.03%)
++air.fast_fmod.f32                          ->  186612 modules fully covered ( 96.56%)
++air.any.v4i1                               ->  187644 modules fully covered ( 97.09%)
+
+
+=== LLVM INSTRUCTION-LEVEL GAP (random 1500-module sample) ===
+Iridium handles: ret br phi load store getelementptr bitcast zext fptrunc call
+                 shufflevector insert/extractvalue insert/extractelement
+                 fadd fsub fmul fdiv, fcmp (only OGT and OLT predicates)
+NOT handled, with % of modules that contain the instruction:
+  select                  964  64.3%
+  icmp                    723  48.2%
+  and                     693  46.2%
+  add                     686  45.7%
+  mul                     631  42.1%
+  shl                     631  42.1%
+  alloca                  464  30.9%
+  lshr                    432  28.8%
+  sext                    222  14.8%
+  or                      199  13.3%
+  sub                      13   0.9%
+
+=== TEXTURE arg_type_name CENSUS (random 1500-module sample) ===
+-- texture class --
+  texture2d                   1787 119.1%
+  texture2d_array              526  35.1%
+  depth2d                      466  31.1%
+  texture3d                    432  28.8%
+  texturecube_array            364  24.3%
+  depthcube                    275  18.3%
+  texturecube                  108   7.2%
+-- full arg_type_name --
+  texture2d<float, sample>                            1450
+  texture2d_array<float, sample>                       526
+  depth2d<float, sample>                               466
+  texture3d<uint, sample>                              432
+  texturecube_array<float, sample>                     364
+  texture2d<uint, sample>                              337
+  depthcube<float, sample>                             275
+  texturecube<float, sample>                           108
+
+Iridium supports only: texture2d, texturecube  x  {half,float} sample types.
+
+=== mtl2spv TRIAL (510 stratified unique metallibs, Iridium vs LLVM 14) ===
+produced a .spv at all : 5 / 510  (0.98%)
+passed spirv-val       : 3 / 510  (0.59%)
+first-failure breakdown:
+    258 Unhandled instruction opcode: 26
+     97 TODO: support actual function calls (name = air.fast_clamp.f32)
+     29 std::exception
+     19 Unhandled instruction opcode: 46
+     15 TODO: support actual function calls (name = air.mix.f32)
+     15 TODO: support actual function calls (name = air.fmax.f32)
+     10 TODO: support actual function calls (name = air.fast_sin.f32)
+      9 TODO: support actual function calls (name = air.mix.v4f32)
+      7 TODO: support actual function calls (name = air.fast_floor.f32)
+      7 TODO: support actual function calls (name = air.discard_fragment)
+      6 TODO: handle fcmp predicate: 1
+      3 TODO: support actual function calls (name = air.mix.v3f32)
+      3 TODO: support actual function calls (name = air.fast_powr.v4f32)
+      3 TODO: support actual function calls (name = air.fast_powr.f32)
+      3 TODO: support actual function calls (name = air.fast_clamp.v3f32)
+      3 TODO: support actual function calls (name = air.dfdy.v3f32)
+      3 TODO: support actual function calls (name = air.convert.s.i32.f.f32)
+      2 TODO: support actual function calls (name = air.mix.v2f32)
+      2 TODO: support actual function calls (name = air.fast_fract.v2f32)
+      2 TODO: handle fcmp predicate: 3
+      1 TODO: support actual function calls (name = air.sample_texture_cube.v4f32)
+      1 TODO: support actual function calls (name = air.fmin.f32)
+      1 TODO: support actual function calls (name = air.fast_rint.f32)
+      1 TODO: support actual function calls (name = air.fast_fract.f32)
+      1 TODO: support actual function calls (name = air.fast_fabs.f32)
+      1 TODO: support actual function calls (name = air.fast_clamp.v4f32)
+      1 TODO: support actual function calls (name = air.fast_clamp.v2f32)
+      1 TODO: support actual function calls (name = air.dot.v2f32)
+      1 TODO: support actual function calls (name = air.atan2.f32)

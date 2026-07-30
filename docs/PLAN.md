@@ -125,14 +125,21 @@ enumerate via dispatch logging on 16.3, which drives the same Metal path when av
       Extraction: cslol-tools `wad-extract` builds standalone on Linux
       (`-DCMAKE_POLICY_VERSION_MINIMUM=3.5`); tools + `hashes.game.txt` in
       `~/.local/bin`.
-- [ ] Basis decision: **vendor Darling's indium + Iridium (0BSD)** — pure-C++ core with
-      no ObjC/CF dependency (our stub facade pattern fits on top), and Iridium is an
-      existing AIR→SPIR-V translator (`mtl2spv`), i.e. exactly the format League ships.
-      Gate on a follow-up spike: run `mtl2spv` over a sample of extracted metallibs and
-      measure translation success; enumerate the `air.*` intrinsic surface used (dot,
-      etc.) vs what Iridium covers. Caveat to carry: every shader sets
-      `fast_math_enable` — map deliberately onto SPIR-V relaxed-math or expect visual
-      drift. Expect to become de-facto maintainer (upstream dormant, ~54 commits).
+- [x] **Iridium gate spike (2026-07-31): not viable as-is; usable as a skeleton.**
+      Census over all 206,412 metallibs (193,263 unique — dedupe only 6%; full data:
+      206k-module census, 83 distinct `air.*` intrinsics, uniform AIR 1.8/MSL 1.1,
+      no compute/atomics/threadgroup/fp16; texture surface includes array/3D/depth-
+      compare/integer reads and derivatives). Iridium (in `~/dev/indium`, builds only
+      against **LLVM 14** — five `LLVMGetElementType` sites break under opaque
+      pointers) implements 13/83 intrinsics, and the bigger gap is missing LLVM
+      *instruction* coverage (`select`/`icmp`/`alloca`/int-ALU…): stratified 510-module
+      `mtl2spv` trial → **0.59% pass spirv-val**. Read: its metadata/binding/sampler
+      handling is real, but the instruction selector + texture-type layer need
+      rewrite-scale work, plus either an LLVM-14 pin or an opaque-pointer port.
+      Decision if/when phase 4 starts: extend Iridium as skeleton vs from-scratch
+      targeted AIR→SPIR-V — comparable effort either way against this uniform corpus;
+      budget months. Caveat to carry: every shader sets `fast_math_enable` — map
+      deliberately onto SPIR-V relaxed-math or expect visual drift.
 - [ ] Mini-Metal runtime facade over Vulkan (lavapipe works headless, Vulkan 1.3 +
       timeline semaphores required by indium). Demoted from the critical path by 16.3's
       GL renderer.
