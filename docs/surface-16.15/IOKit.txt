@@ -1,0 +1,5 @@
+_IODisplayCreateInfoDictionary
+_IOHIDGetParameter
+_IOHIDSetParameter
+_NXCloseEventStatus
+_NXOpenEventStatus

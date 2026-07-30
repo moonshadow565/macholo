@@ -1,0 +1,12 @@
+_rp_add_http_header
+_rp_cancel
+_rp_check
+_rp_create_canceler
+_rp_create_patcher_settings
+_rp_create_session
+_rp_destroy_canceler
+_rp_destroy_patcher_settings
+_rp_destroy_session
+_rp_last_error_data
+_rp_last_error_message
+_rp_patch

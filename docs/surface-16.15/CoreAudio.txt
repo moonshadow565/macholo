@@ -1,0 +1,3 @@
+_AudioObjectGetPropertyData
+_AudioObjectGetPropertyDataSize
+_AudioObjectSetPropertyData

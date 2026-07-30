@@ -1,0 +1,10 @@
+_kSecClass
+_kSecClassCertificate
+_kSecMatchLimit
+_kSecMatchLimitAll
+_kSecMatchSearchList
+_kSecMatchTrustedOnly
+_kSecReturnRef
+_SecCertificateCopyData
+_SecItemCopyMatching
+_SecKeychainOpen

@@ -1,0 +1,6 @@
+_MvgInit
+_MvgIsConnected
+_MvgRC
+_MvgRegisterLogin
+_MvgRegisterLogout
+_MvgRT

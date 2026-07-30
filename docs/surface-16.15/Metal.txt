@@ -1,0 +1,8 @@
+_MTLCreateSystemDefaultDevice
+_OBJC_CLASS_$_MTLDepthStencilDescriptor (weak)
+_OBJC_CLASS_$_MTLRenderPassDescriptor (weak)
+_OBJC_CLASS_$_MTLRenderPipelineDescriptor (weak)
+_OBJC_CLASS_$_MTLSamplerDescriptor (weak)
+_OBJC_CLASS_$_MTLStencilDescriptor (weak)
+_OBJC_CLASS_$_MTLTextureDescriptor (weak)
+_OBJC_CLASS_$_MTLVertexDescriptor (weak)
