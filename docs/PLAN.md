@@ -115,13 +115,27 @@ process info, strings).
 16.15 is Metal-only: `MTLCreateSystemDefaultDevice` + 8 descriptor classes +
 CAMetalLayer; device/queue/encoder protocols flow through msgSend (invisible statically —
 enumerate via dispatch logging on 16.3, which drives the same Metal path when available).
-- [ ] Spike: what does the game feed Metal — runtime MSL source
-      (`newLibraryWithSource:`) or precompiled `.metallib` (AIR bitcode)? MSL source →
-      constrained translator over Riot's shader corpus is tractable; metallib → LLVM AIR
-      parsing, much harder.
-- [ ] Mini-Metal over Vulkan (or GL 4.6) as another stub framework. Prior art to study,
-      not adopt: Darling's `indium`. Months, not weeks — demoted from the critical path
-      by 16.3's GL renderer.
+- [x] **Shader-format spike (2026-07-31): precompiled AIR, best case.** All three
+      versions ship `ShaderCache.metal.wad.client` entries as standard `MTLB` metallib
+      containers (Riot wrapper is just `u32 LE length + blob` chunks plus `TOC3.0`
+      permutation tables; ~60–74k metallibs per version). Universally single-function
+      (`wrapped_main`), vertex/fragment only (no compute), MSL 1.1 / AIR 1.8, compiled
+      with Apple's Metal tools for Windows; unencrypted, and **stock LLVM 22 `llvm-dis`
+      parses the bitcode**. 16.15 ships no GLSL wad at all (GL removal confirmed).
+      Extraction: cslol-tools `wad-extract` builds standalone on Linux
+      (`-DCMAKE_POLICY_VERSION_MINIMUM=3.5`); tools + `hashes.game.txt` in
+      `~/.local/bin`.
+- [ ] Basis decision: **vendor Darling's indium + Iridium (0BSD)** — pure-C++ core with
+      no ObjC/CF dependency (our stub facade pattern fits on top), and Iridium is an
+      existing AIR→SPIR-V translator (`mtl2spv`), i.e. exactly the format League ships.
+      Gate on a follow-up spike: run `mtl2spv` over a sample of extracted metallibs and
+      measure translation success; enumerate the `air.*` intrinsic surface used (dot,
+      etc.) vs what Iridium covers. Caveat to carry: every shader sets
+      `fast_math_enable` — map deliberately onto SPIR-V relaxed-math or expect visual
+      drift. Expect to become de-facto maintainer (upstream dormant, ~54 commits).
+- [ ] Mini-Metal runtime facade over Vulkan (lavapipe works headless, Vulkan 1.3 +
+      timeline semaphores required by indium). Demoted from the critical path by 16.3's
+      GL renderer.
 
 ### Phase 5 — more games
 Pick 2–3 macOS-only x86_64 titles; run the audit tool; implement deltas. Each new game
