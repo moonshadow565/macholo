@@ -88,24 +88,28 @@ handles). Replay: `14.8-NA1-4982225995.rofl`.
   classes, `kSec*` Security constants, `_backtrace_from_fp`; NSAlert stub panics instead
   of printing the alert text (it fires on real error paths — make it log+dismiss).
 
-### Phase 2 — primary target: 16.3 renders on screen
-Everything modern except the renderer swamp. Replay: `16.3-EUN1-3908472567.rofl`.
-- [ ] FAT + `__DATA_CONST` (from phase 0).
-- [ ] Modern objc entry-point shims: `objc_alloc`, `objc_alloc_init`, `objc_opt_class`,
-      `objc_opt_isKindOfClass`, `objc_opt_new`, `objc_opt_self`, `objc_msgSendSuper2`
-      (non-fixup). The old `*_fixup` variants in `stub_objc.S` are no longer referenced.
-- [ ] Multi-image loader: 16.3 hard-links RPatch/mvg/RiotGamesApi via `@rpath` (12+6
-      lazy binds land in bundled frameworks). Per-image rebase/bind/objc/TLV,
-      cross-image export resolution.
-- [ ] Mini-CF (~30 syms, `surface-16.3/CoreFoundation.txt`) incl.
-      `__CFConstantStringClassReference` and `CFPropertyListCreateFromXMLData`.
-- [ ] Renderer selection spike: Metal is weak-linked, OpenGL hard-linked — resolve
-      Metal imports to NULL and verify the game falls back to GL (expected, since weak
-      linkage exists to run on Metal-less configurations); if it doesn't, find the
-      renderer config knob or patch selection.
-- [ ] The ~111 `gl*` imports map 1:1 to host libGL; only CGL*/NSOpenGL* need stubs
-      (mostly existing).
-- Milestone: modern-client replay renders on Linux without any Metal work.
+### Phase 2 — primary target: 16.3 renders on screen ✅ (2026-07-31)
+**Milestone reached**: `16.3-EUN1-3908472567.rofl` plays to `GAMESTATE_GAMELOOP`,
+rendering on llvmpipe (`X3D Platform: OpenGL 3.2 Core`), zero unresolved symbols
+except the intentional weak Metal set. 14.8 regression clean.
+- [x] FAT + `__DATA_CONST` (phase 0) — plus a third loader fix found here: `__DATA`'s
+      zerofill extends past the file slice, so the loader now reserves the full VM span
+      anonymously and overlays the file with `MAP_FIXED` (14.8 survived by accident).
+- [x] Modern objc entry-point shims (`objc_opt_*`; libobjc2 v2.3 already exports
+      `objc_alloc`/`objc_alloc_init`), `__objc_personality_v0` → libobjc2,
+      `___chkstk_darwin`.
+- [x] ~~Multi-image loader~~ **Not needed**: stubbing the 18 RPatch/mvg imports
+      (patcher returns "nothing to do", telemetry disconnected) satisfies replays;
+      RiotGamesApi has zero static imports. Multi-image loading moves to the
+      "more games" phase if a target actually calls into a bundled dylib.
+- [x] Renderer selection: with Metal resolved to NULL the game selects GL on its own.
+- Two ABI-level discoveries with impact beyond 16.3 (see commit messages):
+  **tlv.cpp never called `pthread_setspecific`** — TLV writes never stuck; in 16.3
+  this livelocked Async Loading via a TLS bump allocator degrading to O(n²) with
+  unbounded chunk leaks. And **Darwin `%gs` TSD emulation** (`arch_prctl(ARCH_SET_GS)`
+  per thread) — inlined `mov %gs:N` accesses fault on Linux otherwise.
+- [ ] Mini-CF (~30 syms, `surface-16.3/CoreFoundation.txt`) — still planned, but as
+      cleanup (gnustep-corebase currently covers it), no longer a blocker.
 
 ### Phase 3 — mini-Foundation, drop gnustep-base
 Sized by phase-1/2 selector logs. Expect ~15 classes, shallow usage (paths, bundle,
