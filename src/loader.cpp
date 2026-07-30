@@ -43,12 +43,29 @@ loader::Image* loader::Image::load(char const* name) {
   assert_that(text != nullptr);
   assert_that(text->fileoff == 0);
 
+  // The image needs more VM than the file slice provides: __DATA's zerofill (__bss) can
+  // extend past the end of the slice (16.3: __DATA vmsize 0xf6000 vs filesize 0x1e000).
+  // Reserve the whole span anonymously first, then overlay the file-backed part.
+  uint64_t vm_end = text->vmaddr + sl.size;
+  for (auto const& seg : object.segments) {
+    if (seg.name == "__PAGEZERO") continue;
+    if (seg.vmaddr + seg.vmsize > vm_end) vm_end = seg.vmaddr + seg.vmsize;
+  }
+  auto const vm_size = (size_t)(vm_end - text->vmaddr);
+
   // Try to load at prefered addres...
   // FIXME: this is horibly wrong.
-  void* remaped = ::mmap((void*)text->vmaddr, sl.size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd.get(), sl.offset);
-  if (remaped != nullptr && (std::intptr_t)remaped != -1) {
-    ::munmap(file, size);
-    address = remaped;
+  void* reserved =
+      ::mmap((void*)text->vmaddr, vm_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (reserved != nullptr && (std::intptr_t)reserved != -1) {
+    void* remaped =
+        ::mmap(reserved, sl.size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_FIXED, fd.get(), sl.offset);
+    if (remaped != nullptr && (std::intptr_t)remaped != -1) {
+      ::munmap(file, size);
+      address = remaped;
+    } else {
+      ::munmap(reserved, vm_size);
+    }
   }
 
   auto const slide = (uintptr_t)address - text->vmaddr;
