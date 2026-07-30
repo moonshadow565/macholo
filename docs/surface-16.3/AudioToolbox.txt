@@ -1,0 +1,11 @@
+_AUGraphAddNode
+_AUGraphClose
+_AUGraphConnectNodeInput
+_AUGraphInitialize
+_AUGraphNodeInfo
+_AUGraphOpen
+_AUGraphSetNodeInputCallback
+_AUGraphStart
+_AUGraphStop
+_DisposeAUGraph
+_NewAUGraph

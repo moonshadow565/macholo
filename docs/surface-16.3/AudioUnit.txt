@@ -1,0 +1,4 @@
+_AudioOutputUnitStop
+_AudioUnitSetParameter
+_AudioUnitSetProperty
+_AudioUnitUninitialize

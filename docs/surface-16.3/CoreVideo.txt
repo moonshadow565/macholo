@@ -1,0 +1,2 @@
+_CVDisplayLinkCreateWithCGDisplay
+_CVDisplayLinkGetNominalOutputVideoRefreshPeriod
