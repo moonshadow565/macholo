@@ -61,6 +61,7 @@ add_library(stub SHARED
     src/system/stub_process.c
     src/system/stub_pthread.c
     src/system/stub_resolv.c
+    src/system/stub_riot.c
     src/system/stub_rune.c
     src/system/stub_socket.c
     src/system/stub_str.c
