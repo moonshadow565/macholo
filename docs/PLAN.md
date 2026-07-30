@@ -152,6 +152,14 @@ enumerate via dispatch logging on 16.3, which drives the same Metal path when av
 Pick 2–3 macOS-only x86_64 titles; run the audit tool; implement deltas. Each new game
 should reduce to "N missing symbols + M missing selectors", with per-game cost dropping.
 
+## Known issues
+- **16.3 + llvmpipe with >4 threads segfaults** shortly after `InitResources`
+  (found 2026-07-31 after the VM went 4→8 cores; crash IP in game code,
+  deterministic; 14.8 unaffected). `LP_NUM_THREADS=4` (or `taskset` to ≤4 CPUs) is a
+  reliable workaround; game-visible core count via sysctl is *not* the trigger.
+  Likely a timing-sensitive race in the game's GL renderer exposed by llvmpipe's
+  internal thread count. Any test harness must pin `LP_NUM_THREADS`.
+
 ## Open questions
 1. Location of customlolskins-manager repo (source for the FAT parser port).
 2. ~~Is a GL-era `.app` archived?~~ **Answered: 16.3 (and 14.8) in `~/Game/`.** On-screen
