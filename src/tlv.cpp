@@ -19,9 +19,15 @@ struct tlv_descriptor_t {
 static void* tlv_allocate_for_key(pthread_key_t key) {
   auto const image = loader::Image::main;
   void* data = malloc(image->object.tlv_size);
+  if (!data) return nullptr;
   memset(data, 0, image->object.tlv_size);
   memcpy(data, (void*)(image->object.tlv_start + image->slide), image->object.tlv_size);
-  
+
+  // NOTE: publish the block before running the initializers -- an initializer may itself
+  // touch a thread-local, which would otherwise recurse back in here and hand out a
+  // second, competing block for the same thread.
+  pthread_setspecific(key, data);
+
   for (auto const& seg : image->object.segments) {
     for (auto const& sect : seg.sections) {
       if (sect.type != macho::Section::TYPE_THREAD_LOCAL_INIT_FUNCTION_POINTERS) {
