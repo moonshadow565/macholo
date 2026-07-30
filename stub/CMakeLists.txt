@@ -27,6 +27,8 @@ add_library(stub SHARED
     src/appkit/NSNib.m
     src/appkit/NSOpenGLContext.h
     src/appkit/NSOpenGLContext.m
+    src/appkit/NSPasteboard.h
+    src/appkit/NSPasteboard.m
     src/appkit/NSResponder.h
     src/appkit/NSResponder.m
     src/appkit/NSTextInputContext.h

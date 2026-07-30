@@ -36,6 +36,7 @@ typedef NSString *NSPrintInfoAttributeKey;
 @class NSImageRep;
 @class NSNotification;
 @class NSOpenGLPixelFormat;
+@class NSPasteboard;
 @class NSScreen;
 @class NSTextInputContext;
 @class NSView;
@@ -49,6 +50,5 @@ typedef void NSDraggingSession;  // STUB
 typedef void NSFont;             // STUB
 typedef void NSGraphicsContext;  // STUB
 typedef void NSMenu;             // STUB
-typedef void NSPasteboard;       // STUB
 typedef void NSText;             // STUB
 typedef void NSViewController;   // STUB
