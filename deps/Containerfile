@@ -1,0 +1,211 @@
+# GNUstep dependency sysroot for macholo.
+#
+# Builds the Objective-C runtime + Foundation + CoreFoundation stack that
+# stub/gnustep/CMakeLists.txt consumes, against a Fedora 44 base image so the
+# resulting binaries are ABI-matched to the dev-f44 host.
+#
+# Replaces the old Ubuntu reference script (stub/gnustep/build-gnustep.sh).
+# Notable deviations from that script, all deliberate:
+#   * libdispatch comes from Fedora's `libdispatch-devel` RPM (swift-corelibs-
+#     libdispatch 6.0.2) instead of being built from git.  It ships
+#     /usr/include/dispatch/*, /usr/include/Block.h and libBlocksRuntime.so,
+#     and libs-base's configure accepts it (including the
+#     "link libdispatch and libobjc at the same time" check), so there is no
+#     reason to compile it ourselves.
+#   * libs-gui / libs-back are NOT built - nothing in macholo links them.
+#   * clang 22 (Fedora 44) instead of clang 18, hence the -Wno-error=... set.
+#
+# C++ RUNTIME / ABI CHOICE  (read this before changing anything below)
+# -------------------------------------------------------------------
+# libobjc2 is the only component with C++ in it (arc.mm, objcxx_eh.cc,
+# selector_table.cc) and it is what implements Objective-C <-> C++ exception
+# interop, so its C++ standard library must agree with the consumer's.
+# macholo/CMakeLists.txt builds the host app with `-stdlib=libc++` and links
+# `-lc++abi -lsupc++`, and the old Ubuntu tree was likewise built with libc++,
+# so libobjc2 is built here with **libc++ / libc++abi** as well.
+#
+# Both -DCMAKE_CXX_FLAGS and -DCMAKE_OBJCXX_FLAGS must carry `-stdlib=libc++`.
+# Setting only CXX_FLAGS (as the reference script effectively did) leaves
+# arc.mm compiled against libstdc++ headers, and libobjc.so then ends up with
+# an unsatisfiable `std::__throw_length_error(char const*)` undefined symbol
+# that makes every subsequent -lobjc link fail.  libgnustep-base and
+# libgnustep-corebase are pure C/Objective-C and pull in no C++ runtime.
+#
+# Everything lands in the GNUstep `gnustep` layout under /usr/GNUstep:
+#   /usr/GNUstep/System/...  gnustep-make (Makefiles, gnustep-config, Tools)
+#   /usr/GNUstep/Local/...   libobjc, libgnustep-base, libgnustep-corebase
+#                            plus their headers
+# which is exactly what the reference GNUStep.tar.xz contained and what
+# stub/gnustep/CMakeLists.txt searches (it adds both Local and System).
+
+FROM registry.fedoraproject.org/fedora:44
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Pinned upstream revisions.  Commit hashes are the ones this recipe was
+# validated against; the tag/branch is what actually gets checked out.
+ARG TOOLS_MAKE_REF=make-2_9_3
+# tools-make   214a57eb7a6d2e0590a8aece4970a72561beb8d5
+ARG LIBOBJC2_REF=v2.3
+# libobjc2     e877e782fb965c4e870d2ecf6aff58dddc6290ae   -> libobjc.so.4.6
+ARG LIBS_BASE_REF=base-1_29_0
+# libs-base    c6af8ef4bf44c2d3ed36a136f1799fe263978af4   -> .so.1.29.0
+ARG LIBS_COREBASE_REF=b85d48066ba0fdb1333f94776cef122cdfba007e
+# libs-corebase has no useful tags (latest is corebase-0_1_1 from 2013), so it
+# is pinned by commit off master -> libgnustep-corebase.so.0.2
+
+# --- build + runtime dependencies -------------------------------------------
+# libcxx-devel/libcxxabi-devel: libobjc2's C++ side (see ABI note above).
+# libdispatch-devel: Grand Central Dispatch + BlocksRuntime, used by libs-base
+#   (NSOperationQueue/NSURLSession) and probed by libs-corebase.
+# libcurl-devel: lets libs-base build its curl-backed NSURLSession.
+# gnutls/libxml2/libxslt/libicu/libffi/gmp/zlib/openssl: standard libs-base and
+#   libs-corebase dependencies.
+RUN dnf -y install --setopt=install_weak_deps=False \
+        clang lld cmake ninja-build make git-core \
+        autoconf automake libtool pkgconf-pkg-config \
+        binutils findutils file xz tar patch which diffutils \
+        libcxx-devel libcxxabi-devel \
+        libdispatch-devel \
+        libffi-devel libxml2-devel libxslt-devel gnutls-devel libicu-devel \
+        libcurl-devel gmp-devel zlib-devel openssl-devel \
+    && dnf clean all
+
+ENV CC=clang \
+    CXX=clang++ \
+    RUNTIME_VERSION=gnustep-2.1 \
+    GNUSTEP_MAKEFILES=/usr/GNUstep/System/Library/Makefiles
+
+# clang 22 promoted a pile of long-standing C sloppiness to hard errors.
+# libs-base 1.29 and libs-corebase (and gnustep-make's own configure probes)
+# still trip over them, so demote them back to warnings.
+ENV RELAX_CFLAGS="-Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=incompatible-function-pointer-types"
+
+WORKDIR /src
+
+# --- 0. gnustep-make bootstrap ----------------------------------------------
+# Has to exist before libobjc2 is configured: libobjc2's CMakeLists looks for
+# `gnustep-config` and, when it finds one, installs into the GNUstep LOCAL
+# domain instead of /usr/local.  That is how the reference tree ended up with
+# libobjc.so.4.6 in /usr/GNUstep/Local/Library/Libraries.
+RUN git clone -q --depth 1 -b "${TOOLS_MAKE_REF}" https://github.com/gnustep/tools-make.git \
+    && cd tools-make \
+    && ./configure \
+        --with-layout=gnustep \
+        --disable-importing-config-file \
+        --enable-native-objc-exceptions \
+        --enable-objc-arc \
+        --enable-install-ld-so-conf \
+        --with-library-combo=ng-gnu-gnu \
+    && make -j"$(nproc)" \
+    && make install
+
+# --- 1. libobjc2 ------------------------------------------------------------
+# v2.3 is the newest release; it still sets libobjc_VERSION 4.6 (matching the
+# old prebuilt tree) and supports -fobjc-runtime=gnustep-2.1 consumers.
+RUN git clone -q --depth 1 -b "${LIBOBJC2_REF}" --recursive https://github.com/gnustep/libobjc2.git \
+    && . "${GNUSTEP_MAKEFILES}/GNUstep.sh" \
+    && cmake -S libobjc2 -B libobjc2/build -G Ninja \
+        -DCMAKE_C_COMPILER=clang \
+        -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_ASM_COMPILER=clang \
+        -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+        -DCMAKE_OBJCXX_FLAGS="-stdlib=libc++" \
+        -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++ -lc++abi" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++ -lc++abi" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DTESTS=OFF \
+    && cmake --build libobjc2/build \
+    && cmake --install libobjc2/build \
+    && ldconfig \
+    && test -f /usr/GNUstep/Local/Library/Libraries/libobjc.so.4.6
+
+# --- 2. gnustep-make, for real ----------------------------------------------
+# Re-run now that libobjc2 is installed so the ng-gnu-gnu combo is configured
+# against the real runtime (mirrors build_3_toolsmake in the reference script).
+RUN cd tools-make \
+    && make distclean >/dev/null 2>&1 || true; \
+    cd /src/tools-make \
+    && ./configure \
+        --with-layout=gnustep \
+        --disable-importing-config-file \
+        --enable-native-objc-exceptions \
+        --enable-objc-arc \
+        --enable-install-ld-so-conf \
+        --with-library-combo=ng-gnu-gnu \
+    && make -j"$(nproc)" \
+    && make install
+
+# --- 3. libs-base -----------------------------------------------------------
+# 1.29.0, the version the old prebuilt tree shipped (libgnustep-base.so.1.29.0).
+#
+# PATCH: Source/Additions/GSXML.m touches `xmlEntity->checked`, a field libxml2
+# dropped in 2.12 (Fedora 44 ships 2.12.10; it was replaced by `flags`).  Still
+# broken on libs-base master, so this is not fixed by moving to a newer tag.
+# The field was only libxml2's internal entity-recursion marker and libxml2
+# maintains it itself now, so deleting the assignment is safe.
+RUN git clone -q --depth 1 -b "${LIBS_BASE_REF}" https://github.com/gnustep/libs-base.git \
+    && perl -0pi -e 's/if \(ret->checked == 0\)\s*\{\s*ret->checked = 1;\s*\}//s' \
+        libs-base/Source/Additions/GSXML.m \
+    && ! grep -q 'ret->checked' libs-base/Source/Additions/GSXML.m \
+    && . "${GNUSTEP_MAKEFILES}/GNUstep.sh" \
+    && cd libs-base \
+    && CFLAGS="${RELAX_CFLAGS}" ./configure \
+    && make -j"$(nproc)" \
+        ADDITIONAL_CFLAGS="${RELAX_CFLAGS}" \
+        ADDITIONAL_OBJCFLAGS="${RELAX_CFLAGS}" \
+    && make install \
+    && ldconfig \
+    && nm -D --defined-only /usr/GNUstep/Local/Library/Libraries/libgnustep-base.so \
+        | grep -qw GSInitializeProcess
+
+# --- 4. libs-corebase -------------------------------------------------------
+# The reference script fed it `gnustep-config --objc-flags` as CFLAGS; that is
+# necessary but not sufficient here - its configure also link-probes for
+# objc_getClass and preprocesses <objc/runtime.h>, and the linker/preprocessor
+# do not read ld.so.conf, so CPPFLAGS/LDFLAGS must point at the GNUstep tree
+# explicitly or configure aborts with "Objective-C library not found!".
+RUN git clone -q https://github.com/gnustep/libs-corebase.git \
+    && git -C libs-corebase checkout -q "${LIBS_COREBASE_REF}" \
+    && . "${GNUSTEP_MAKEFILES}/GNUstep.sh" \
+    && cd libs-corebase \
+    && CFLAGS="$(gnustep-config --objc-flags) ${RELAX_CFLAGS}" \
+       CPPFLAGS="-I/usr/GNUstep/Local/Library/Headers -I/usr/GNUstep/System/Library/Headers" \
+       LDFLAGS="-L/usr/GNUstep/Local/Library/Libraries -L/usr/GNUstep/System/Library/Libraries" \
+       ./configure \
+    && make -j"$(nproc)" \
+        ADDITIONAL_CFLAGS="${RELAX_CFLAGS}" \
+        ADDITIONAL_OBJCFLAGS="${RELAX_CFLAGS}" \
+    && make install \
+    && ldconfig \
+    && nm -D --defined-only /usr/GNUstep/Local/Library/Libraries/libgnustep-corebase.so \
+        | grep -qw CFArrayCreate
+
+# --- 5. provenance ----------------------------------------------------------
+RUN { echo "built: $(date -u +%FT%TZ)"; \
+      echo "base:  $(. /etc/os-release; echo "$PRETTY_NAME")"; \
+      echo "clang: $(clang --version | head -1)"; \
+      for d in tools-make libobjc2 libs-base libs-corebase; do \
+        echo "$d: $(git -C /src/$d describe --tags --always 2>/dev/null) $(git -C /src/$d rev-parse HEAD)"; \
+      done; } > /usr/GNUstep/BUILD-INFO.txt \
+    && cat /usr/GNUstep/BUILD-INFO.txt
+
+# --- 6. build-time verification ---------------------------------------------
+# Compiles and RUNS a program using exactly the flags and libraries that
+# stub/gnustep/CMakeLists.txt hands to the macholo target.  If the ABI is
+# wrong, this fails here rather than in the consuming project.
+COPY smoke.m /tmp/smoke.m
+RUN clang -o /tmp/smoke /tmp/smoke.m \
+        -DGNUSTEP -DGNUSTEP_BASE_LIBRARY=1 -DGNUSTEP_RUNTIME=1 -D_NONFRAGILE_ABI=1 \
+        -fobjc-runtime=gnustep-2.1 -fblocks -fconstant-string-class=NSConstantString \
+        -I/usr/GNUstep/Local/Library/Headers -I/usr/GNUstep/System/Library/Headers \
+        -L/usr/GNUstep/Local/Library/Libraries -L/usr/GNUstep/System/Library/Libraries \
+        -lm -lpthread -lobjc -lgnustep-base -lgnustep-corebase \
+    && /tmp/smoke \
+    && for so in /usr/GNUstep/Local/Library/Libraries/lib*.so.*; do \
+         echo "ldd $so"; ldd "$so" | grep -F "not found" && exit 1; \
+       done; :
+
+# Sources are ~700MB of git checkouts and object files; the sysroot is what we
+# ship.  BUILD-INFO.txt above already captured the revisions.
+RUN rm -rf /src

@@ -1,0 +1,58 @@
+# Fedora packages required on the host for deps/sysroot to load.
+# Derived from ldd of every .so under sysroot/usr/GNUstep (+ /usr/local),
+# mapped through rpm -qf inside the build container.
+#
+#   sudo dnf install $(grep -v '^#' host-packages.txt)
+#
+# Notes:
+#  * libdispatch (swift-corelibs-libdispatch) is both a build and a
+#    runtime dependency of libgnustep-base, which links it directly.
+#  * libcxx/libcxxabi are here because libobjc was built with libc++,
+#    matching the -stdlib=libc++ the macholo executable uses.
+#  * libstdc++ comes in via libicu, not via anything GNUstep built.
+#
+# Compile-time only, so NOT listed below:
+#   clang lld cmake libcxx-devel libcxxabi-devel
+#   gcc-c++   (provides libsupc++.a, needed for the -lsupc++ in
+#              macholo's CMAKE_EXE_LINKER_FLAGS)
+
+cyrus-sasl-lib
+glibc
+gmp
+gnutls
+keyutils-libs
+krb5-libs
+libbrotli
+libcbor
+libcom_err
+libcurl
+libcxx
+libcxxabi
+libdispatch
+libevent
+libffi
+libfido2
+libgcc
+libicu
+libidn2
+libnghttp2
+libnghttp3
+libpsl
+libselinux
+libssh
+libstdc++
+libtasn1
+libunistring
+libxcrypt
+libxml2
+libxslt
+nettle
+ngtcp2
+ngtcp2-crypto-ossl
+openldap
+openssl-libs
+p11-kit
+pcre2
+systemd-libs
+xz-libs
+zlib-ng-compat

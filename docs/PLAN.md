@@ -66,15 +66,27 @@ direct-mapped gl* functions on 16.3).
 - [ ] Audit tool: `macholo-dump` (src/dump.cpp) parses + prints segments/binds with
       counts matching llvm-objdump; still to add: per-dylib attribution, objc class/sel
       surface, diff against implemented stubs (`docs/surface-*/` are the target output).
-- [ ] Podman dep build; `cmake -B build && cmake --build build` works on Fedora 44.
+- [x] Podman dep build (`deps/` — see [GNUSTEP-BUILD.md](GNUSTEP-BUILD.md) for the
+      rationale and ABI landmines). Host build works on Fedora 44:
+      `CC/CXX/OBJC/ASM=clang cmake -B build -DGNUSTEP_DIR=$PWD/deps/sysroot/usr/GNUstep`
+      (+ `libstdc++-static` for `-lsupc++`).
 
-### Phase 1 — regression baseline on 14.8
+### Phase 1 — regression baseline on 14.8 ✅ (2026-07-30)
 Thin x86_64, no `__DATA_CONST`, GL + Cg renderer, only Cg.framework hard-linked
 (RiotGamesApi/RPatch/mvg arrive via dlopen, which the stubbed-to-fail dlopen already
-handles). This is the client generation macholo actually ran — the goal is proving the
-rebuilt dep environment (podman libobjc2 + gnustep-base) and the existing stubs still
-work, before layering new features. Replay: `14.8-NA1-4982225995.rofl`.
-- Milestone: replay renders via the existing NSOpenGLContext/SDL/GL path.
+handles). Replay: `14.8-NA1-4982225995.rofl`.
+- [x] **Milestone reached**: replay runs headless to `GAMESTATE_GAMELOOP` and renders
+      frames — Xvfb + llvmpipe (GL 3.2 core over Mesa 26), Wwise inits through the ALSA
+      sink (`~/.asoundrc` null default on soundless machines), full flow
+      Bootstrap → Patching → LoLCommon → PREGAME → SPAWN → GAMELOOP. ~1–4 s/frame on
+      llvmpipe (4-core VM) — fine for correctness work.
+- Env quirks worth remembering: game chdirs to `Contents/MacOS` and resolves
+  `DATA/FINAL/...` from there → needs `DATA` symlink inside `Contents/MacOS` (or the
+  proper GameBaseDir argument, to be found); it writes a `SOFT_REPAIR` marker on failed
+  wad mounts — delete it between runs.
+- Remaining loose ends (small): unresolved `NSProgressIndicator`/`NSImageView` stub
+  classes, `kSec*` Security constants, `_backtrace_from_fp`; NSAlert stub panics instead
+  of printing the alert text (it fires on real error paths — make it log+dismiss).
 
 ### Phase 2 — primary target: 16.3 renders on screen
 Everything modern except the renderer swamp. Replay: `16.3-EUN1-3908472567.rofl`.

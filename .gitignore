@@ -18,3 +18,5 @@ build/*
 build
 test/
 stub/gnustep/workdir
+# reproducible via deps/build-sysroot.sh; 21 MB of binaries
+deps/sysroot/
