@@ -1085,6 +1085,19 @@ macho::Object macho::Object::read(void* image) {
     }
   }
 
+  // Read dependent dylibs and rpaths. All dependent-dylib command kinds share one ordinal space.
+  for (const auto& cmd : *mach) {
+    if (auto const c = cmd.is<LC_LOAD_DYLIB>()) {
+      object.dylibs.push_back({std::string(c->name.str_view()), false});
+    } else if (auto const c = cmd.is<LC_LOAD_WEAK_DYLIB>()) {
+      object.dylibs.push_back({std::string(c->name.str_view()), true});
+    } else if (auto const c = cmd.is<LC_REEXPORT_DYLIB>()) {
+      object.dylibs.push_back({std::string(c->name.str_view()), false});
+    } else if (auto const c = cmd.is<LC_RPATH>()) {
+      object.rpaths.push_back(std::string(c->path.str_view()));
+    }
+  }
+
   // Read rebase.
   if (auto const info = mach->get<LC_DYLD_INFO>()) {
     object.rebase = binary_reader((char*)mach + info->rebase_off, info->rebase_size).read_rebase(object.segments);

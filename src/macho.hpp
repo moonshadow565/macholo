@@ -151,8 +151,16 @@ namespace macho {
     constexpr bool operator!() const { return !msg; }
   };
 
+  // Dependent library, in load-command order (bind ordinals are 1-based indexes into this list).
+  struct Dylib {
+    std::string name;
+    bool weak;
+  };
+
   struct Object {
     std::vector<Segment> segments;
+    std::vector<Dylib> dylibs;
+    std::vector<std::string> rpaths;
     std::vector<Rebase> rebase;
     std::vector<Binding> bind;
     std::vector<Binding> bind_lazy;
