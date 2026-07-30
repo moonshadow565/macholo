@@ -11,6 +11,8 @@
 - (id)delegate;
 - (void)setDelegate: (id)delegate;
 
+- (NSWindow *)keyWindow;
+- (NSWindow *)mainWindow;
 - (NSEvent*) currentEvent;
 - (NSEvent *)nextEventMatchingMask:(NSEventMask)mask
                          untilDate:(NSDate *)untilDate

@@ -70,12 +70,14 @@
     if (characters == Nil || [characters length] != 1) {
         return YES;
     }
-    NSAttributedString* text = [_client attributedString];
-    NSLog(@"text = %@\n", text);
-    uint i = [text length];
+    // NOTE: -attributedString is optional in NSTextInputClient and the game's
+    // IMETextInput does not implement it (TextInputClientMacOSX does), so asking
+    // for it unconditionally would abort on an unrecognized selector.
+    if (![_client respondsToSelector: @selector(insertText:replacementRange:)]) {
+        return YES;
+    }
     [_client insertText: characters replacementRange: (NSRange){0, 0}];
     _count += [characters length];
     return YES;
-    return NO;
 }
 @end

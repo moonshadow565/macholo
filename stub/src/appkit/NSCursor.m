@@ -27,10 +27,11 @@ static NSCursor* _currentCursor = NULL;
   return _hotspot;
 }
 + (void)hide {
-  SDL_ShowCursor(SDL_ENABLE);
+  // NOTE: these two were swapped; +hide must hide the pointer, not show it.
+  SDL_ShowCursor(SDL_DISABLE);
 }
 + (void)unhide {
-  SDL_ShowCursor(SDL_DISABLE);
+  SDL_ShowCursor(SDL_ENABLE);
 }
 + (void)setHiddenUntilMouseMoves:(BOOL)flag {
   // NOTE: this is useless

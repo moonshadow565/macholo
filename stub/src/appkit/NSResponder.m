@@ -1,5 +1,6 @@
 #include "NSResponder.h"
 #include <common.h>
+#include "input_debug.h"
 
 @implementation NSResponder {
   NSResponder *nextResponder_;
@@ -9,6 +10,8 @@
   return nextResponder_;
 }
 - (void)setNextResponder:(NSResponder *)responder {
+  INPUT_DEBUG("setNextResponder: %s -> %s", class_getName([self class]),
+              responder ? class_getName([responder class]) : "(nil)");
   nextResponder_ = responder;
 }
 
@@ -21,7 +24,9 @@
 - (BOOL)resignFirstResponder {
   return YES;
 }
-- (void)noResponderFor:(SEL)action {}
+- (void)noResponderFor:(SEL)action {
+  INPUT_DEBUG("noResponderFor: %s (chain ended at %s)", sel_getName(action), class_getName([self class]));
+}
 
 #define HANDLE($name)                          \
   -(void)$name : (NSEvent *)event {            \

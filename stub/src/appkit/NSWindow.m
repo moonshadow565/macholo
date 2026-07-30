@@ -9,6 +9,7 @@
 #include "NSView.h"
 #include <common.h>
 #include "enums.h"
+#include "input_debug.h"
 
 static NSUInteger NSToSDL(unsigned flags) {
   NSUInteger style = 0;
@@ -46,6 +47,8 @@ static NSRect rect_to_sdl(NSRect rect) {
   };
 }
 
+static NSWindow *_key_window = Nil;
+
 @implementation NSWindow {
   SDL_Window *_sdl_window;
   id _contentView;
@@ -59,6 +62,10 @@ static NSRect rect_to_sdl(NSRect rect) {
 
 - (void *)getSDLWindow {
   return _sdl_window;
+}
+
++ (NSWindow *)keyWindow {
+  return _key_window;
 }
 
 + (NSWindow *)fromSDLWindowNumber:(NSUInteger)num {
@@ -329,7 +336,8 @@ static NSRect rect_to_sdl(NSRect rect) {
   _level = value;
 }
 - (BOOL)isVisible {
-  panic("Unimplemented");
+  if (_sdl_window == NULL) return NO;
+  return (SDL_GetWindowFlags(_sdl_window) & SDL_WINDOW_SHOWN) ? YES : NO;
 }
 
 - (BOOL)canBecomeKeyWindow {
@@ -340,7 +348,7 @@ static NSRect rect_to_sdl(NSRect rect) {
 }
 
 - (BOOL)isKeyWindow {
-  panic("Unimplemented");
+  return _key_window == self;
 }
 
 - (void)makeKeyAndOrderFront:(id)sender {
@@ -350,6 +358,7 @@ static NSRect rect_to_sdl(NSRect rect) {
   if ([self canBecomeKeyWindow] == NO) {
     return;
   }
+  _key_window = self;
 
   if (_firstResponder) {
     [_firstResponder becomeFirstResponder];
@@ -374,6 +383,13 @@ static NSRect rect_to_sdl(NSRect rect) {
 }
 - (void)sendEvent:(NSEvent *)event {
   if (event == nil) return;
+
+  if (input_debug_enabled() && [event type] != 0) {
+    INPUT_DEBUG("window(%s) sendEvent: type=%ld first=%s next=%s contentView=%s", class_getName([self class]),
+                (long)[event type], _firstResponder ? class_getName([_firstResponder class]) : "(nil)",
+                [self nextResponder] ? class_getName([[self nextResponder] class]) : "(nil)",
+                _contentView ? class_getName([_contentView class]) : "(nil)");
+  }
 
   switch ([event type]) {
 #define HANDLE($e, $m)  \
@@ -431,10 +447,14 @@ static NSRect rect_to_sdl(NSRect rect) {
   return _firstResponder;
 }
 - (BOOL)makeFirstResponder:(NSResponder *)responder {
+  INPUT_DEBUG("makeFirstResponder: %s (current=%s)", responder ? class_getName([responder class]) : "(nil)",
+              _firstResponder ? class_getName([_firstResponder class]) : "(nil)");
   // nothing to do
   if (_firstResponder == responder) return YES;
   // ask responder if its willing to be first
-  if (responder != nil || ![responder acceptsFirstResponder]) return NO;
+  // NOTE: this used to be `responder != nil || ...`, which rejected every
+  // non-nil responder, so -firstResponder always stayed nil.
+  if (responder != nil && ![responder acceptsFirstResponder]) return NO;
   // ask current first responder if its willing to resign
   if (_firstResponder && (![_firstResponder resignFirstResponder])) return NO;
 

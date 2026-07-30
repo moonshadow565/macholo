@@ -8,6 +8,7 @@
 @interface NSWindow : NSResponder
 - (void *)getSDLWindow;
 + (NSWindow*)fromSDLWindowNumber: (NSUInteger)num;
++ (NSWindow*)keyWindow;
 - (void)handleSDLEvent: (void*)sdl_event;
 
 - (instancetype)initWithContentRect:(NSRect)contentRect

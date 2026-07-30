@@ -10,6 +10,7 @@
 #include "NSWindow.h"
 #include <common.h>
 #include "enums.h"
+#include "input_debug.h"
 
 static unsigned short rev_scan_code(unsigned int code) {
   switch (code) {
@@ -355,21 +356,22 @@ static NSEventModifierFlags keysym_to_mod(SDL_Keymod mod) {
           return NSEventTypeOtherMouseUp;
       }
     case SDL_MOUSEMOTION:
-      // FIXME: NSEventTypeLeftMouseDragged
-      // FIXME: NSEventTypeRightMouseDragged
-      // FIXME: NSEventTypeOtherMouseDragged
+      // AppKit reports motion with a button held as a drag, not as a move.
+      if (_sdl_event.motion.state & SDL_BUTTON_LMASK) return NSEventTypeLeftMouseDragged;
+      if (_sdl_event.motion.state & SDL_BUTTON_RMASK) return NSEventTypeRightMouseDragged;
+      if (_sdl_event.motion.state & (SDL_BUTTON_MMASK | SDL_BUTTON_X1MASK | SDL_BUTTON_X2MASK))
+        return NSEventTypeOtherMouseDragged;
       return NSEventTypeMouseMoved;
     case SDL_MOUSEWHEEL:
       return NSEventTypeScrollWheel;
     case SDL_WINDOWEVENT:
       return NSEventTypeAppKitDefined;
     case SDL_KEYDOWN:
-      // if (is_mod(_sdl_event.key.keysym.scancode))
-      //   return NSEventTypeFlagsChanged;
+      // AppKit never delivers keyDown:/keyUp: for pure modifier keys, only flagsChanged:.
+      if (is_mod(_sdl_event.key.keysym.scancode)) return NSEventTypeFlagsChanged;
       return NSEventTypeKeyDown;
     case SDL_KEYUP:
-      // if (is_mod(_sdl_event.key.keysym.scancode))
-      //   return NSEventTypeFlagsChanged;
+      if (is_mod(_sdl_event.key.keysym.scancode)) return NSEventTypeFlagsChanged;
       return NSEventTypeKeyUp;
     default:
       // FIXME: NSEventTypeAppKitDefined as well?
@@ -415,6 +417,9 @@ static NSEventModifierFlags keysym_to_mod(SDL_Keymod mod) {
       // SDL_GetWindowSize(window, NULL, &h);
       return (NSPoint){_sdl_event.button.x, _sdl_event.button.y};
     }
+    case SDL_MOUSEWHEEL:
+      // Scroll events carry a location too; SDL >= 2.26 gives it to us directly.
+      return (NSPoint){_sdl_event.wheel.mouseX, _sdl_event.wheel.mouseY};
     default:
       return (NSPoint){0.0, 0.0};
   }
@@ -469,7 +474,15 @@ static NSEventModifierFlags keysym_to_mod(SDL_Keymod mod) {
   switch (_sdl_event.type) {
     case SDL_KEYDOWN:
     case SDL_KEYUP:
+      // keysym.mod is already updated for this key press/release, which is what
+      // flagsChanged: consumers expect.
       return keysym_to_mod(_sdl_event.key.keysym.mod);
+    case SDL_MOUSEMOTION:
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+    case SDL_MOUSEWHEEL:
+      // AppKit stamps every event with the modifier state, not just key events.
+      return keysym_to_mod(SDL_GetModState());
     default:
       return 0;
   }
@@ -524,9 +537,13 @@ static NSEventModifierFlags keysym_to_mod(SDL_Keymod mod) {
           return _sdl_event.button.button - 1;
       }
     case SDL_MOUSEMOTION:
-    // FIXME: NSEventTypeLeftMouseDragged
-    // FIXME: NSEventTypeRightMouseDragged
-    // FIXME: NSEventTypeOtherMouseDragged
+      // Dragged events report the button being dragged with.
+      if (_sdl_event.motion.state & SDL_BUTTON_LMASK) return 0;
+      if (_sdl_event.motion.state & SDL_BUTTON_RMASK) return 1;
+      if (_sdl_event.motion.state & SDL_BUTTON_MMASK) return 2;
+      if (_sdl_event.motion.state & SDL_BUTTON_X1MASK) return 3;
+      if (_sdl_event.motion.state & SDL_BUTTON_X2MASK) return 4;
+      return 0;
     default:
       return 0;
   }
@@ -565,6 +582,10 @@ static NSEventModifierFlags keysym_to_mod(SDL_Keymod mod) {
 
   int x = 0, y = 0;
   SDL_GetGlobalMouseState(&x, &y);
+  if (input_debug_enabled()) {
+    static unsigned long calls = 0;
+    if ((calls++ % 256) == 0) INPUT_DEBUG("+[NSEvent mouseLocation] #%lu -> %d,%d", calls, x, bounds.h - y);
+  }
   return (NSPoint){x, bounds.h - y};
 }
 

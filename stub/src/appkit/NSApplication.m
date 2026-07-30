@@ -6,6 +6,7 @@
 #include "NSWindow.h"
 #include "SDL_video.h"
 #include <common.h>
+#include "input_debug.h"
 
 NSApplication *NSApp = Nil;
 
@@ -66,8 +67,21 @@ NSApplication *NSApp = Nil;
 #undef REGISTER
 }
 
+- (NSWindow *)keyWindow {
+  // The game references this selector; without an implementation it would be an
+  // unrecognized-selector abort.
+  return [NSWindow keyWindow];
+}
+
+- (NSWindow *)mainWindow {
+  return [NSWindow keyWindow];
+}
+
 - (NSEvent *)currentEvent {
-  panic("Unimplemented!");
+  // The last event handed out by nextEventMatchingMask:. The game calls this
+  // (and -[NSWindow currentEvent], which forwards here) from its input code, so
+  // it must not panic.
+  return _current_event;
 }
 
 - (NSEvent *)nextEventMatchingMask:(NSEventMask)mask
@@ -93,6 +107,41 @@ NSApplication *NSApp = Nil;
 
   [_current_event initFromSDL:(void *)&sdl_event];
 
+  if (input_debug_enabled()) {
+    switch (sdl_event.type) {
+      case SDL_KEYDOWN:
+      case SDL_KEYUP:
+        INPUT_DEBUG("sdl key type=%u scancode=%u sym=%u mod=%u winid=%u -> NSEventType=%ld keyCode=%u",
+                    sdl_event.type, sdl_event.key.keysym.scancode, sdl_event.key.keysym.sym,
+                    sdl_event.key.keysym.mod, sdl_event.key.windowID, (long)[_current_event type],
+                    [_current_event keyCode]);
+        break;
+      case SDL_MOUSEMOTION:
+        INPUT_DEBUG("sdl motion x=%d y=%d rel=%d,%d state=%u winid=%u", sdl_event.motion.x, sdl_event.motion.y,
+                    sdl_event.motion.xrel, sdl_event.motion.yrel, sdl_event.motion.state, sdl_event.motion.windowID);
+        break;
+      case SDL_MOUSEBUTTONDOWN:
+      case SDL_MOUSEBUTTONUP:
+        INPUT_DEBUG("sdl button type=%u btn=%u x=%d y=%d winid=%u -> NSEventType=%ld", sdl_event.type,
+                    sdl_event.button.button, sdl_event.button.x, sdl_event.button.y, sdl_event.button.windowID,
+                    (long)[_current_event type]);
+        break;
+      case SDL_MOUSEWHEEL:
+        INPUT_DEBUG("sdl wheel x=%f y=%f dir=%u winid=%u", sdl_event.wheel.preciseX, sdl_event.wheel.preciseY,
+                    sdl_event.wheel.direction, sdl_event.wheel.windowID);
+        break;
+      case SDL_TEXTINPUT:
+        INPUT_DEBUG("sdl textinput '%s' winid=%u", sdl_event.text.text, sdl_event.text.windowID);
+        break;
+      case SDL_WINDOWEVENT:
+        INPUT_DEBUG("sdl windowevent ev=%u winid=%u data=%d,%d", sdl_event.window.event, sdl_event.window.windowID,
+                    sdl_event.window.data1, sdl_event.window.data2);
+        break;
+      default:
+        break;
+    }
+  }
+
   return _current_event;
 }
 
@@ -100,7 +149,13 @@ NSApplication *NSApp = Nil;
   // TODO: use other events to fix isActive, isHidden etc. ?
   if (event == Nil) return;
   NSWindow *window = [event window];
-  if (window == Nil) return;
+  if (window == Nil) {
+    if (input_debug_enabled() && [event type] != 0)
+      INPUT_DEBUG("NSApp sendEvent: type=%ld DROPPED (no window, windowNumber=%ld)", (long)[event type],
+                  (long)[event windowNumber]);
+    return;
+  }
+  INPUT_DEBUG("NSApp sendEvent: type=%ld -> window %s", (long)[event type], class_getName([window class]));
   [window sendEvent:event];
 }
 
