@@ -1,4 +1,5 @@
 #include <common.h>
+#include <Foundation/NSString.h>
 #include "CoreFoundation/CFArray.h"
 #include "CoreFoundation/CFBase.h"
 #include "CoreFoundation/CFDictionary.h"
@@ -27,14 +28,17 @@ void* NXOpenEventStatus() {
   return NULL;
 }
 
-// DATA:
-// kSecClass
-// kSecClassCertificate
-// kSecMatchLimit
-// kSecMatchLimitAll
-// kSecMatchSearchList
-// kSecMatchTrustedOnly
-// kSecReturnRef
+// DATA: Security.framework attribute keys/values. On Apple these are CFStringRefs; the
+// game only ever uses them as keys/values in the query dictionary it hands to
+// SecItemCopyMatching (stubbed below), so toll-free-bridged constant NSStrings with the
+// real Apple string values are enough.
+CFStringRef kSecClass = (CFStringRef) @"class";
+CFStringRef kSecClassCertificate = (CFStringRef) @"cert";
+CFStringRef kSecMatchLimit = (CFStringRef) @"m_Limit";
+CFStringRef kSecMatchLimitAll = (CFStringRef) @"m_LimitAll";
+CFStringRef kSecMatchSearchList = (CFStringRef) @"m_SearchList";
+CFStringRef kSecMatchTrustedOnly = (CFStringRef) @"m_TrustedOnly";
+CFStringRef kSecReturnRef = (CFStringRef) @"r_Ref";
 
 // typedef struct CF_BRIDGED_TYPE(id) __SecKeychain *SecKeychainRef;
 // typedef struct CF_BRIDGED_TYPE(id) __SecCertificate *SecCertificateRef;

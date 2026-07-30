@@ -19,6 +19,10 @@ add_library(stub SHARED
     src/appkit/NSEvent.m
     src/appkit/NSImage.h
     src/appkit/NSImage.m
+    src/appkit/NSImageView.h
+    src/appkit/NSImageView.m
+    src/appkit/NSProgressIndicator.h
+    src/appkit/NSProgressIndicator.m
     src/appkit/NSNib.h
     src/appkit/NSNib.m
     src/appkit/NSOpenGLContext.h

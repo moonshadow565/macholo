@@ -22,6 +22,8 @@ NSString *NSViewFrameDidChangeNotification = @"NSViewFrameDidChangeNotification"
 
 NSString *NSImageNameStopProgressFreestandingTemplate = @"NSImageNameStopProgressFreestandingTemplate";
 
+NSString *NSPasteboardTypeString = @"public.utf8-plain-text";
+
 @implementation NSScreen {
   int _number;
 }

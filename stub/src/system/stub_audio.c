@@ -1,5 +1,11 @@
 #include <common.h>
 
+// 'who?' -- CoreAudio's kAudioHardwareUnknownPropertyError. Reporting this for every
+// property query is how a machine with no usable audio hardware answers, which is
+// exactly our situation (SDL runs on the dummy driver). The client then stops asking
+// instead of trapping.
+#define kAudioHardwareUnknownPropertyError 0x77686F3F
+
 int NewAUGraph() {
   // FIXME: implement NewAUGraph
   panic("not implemented NewAUGraph");
@@ -12,22 +18,21 @@ int DisposeAUGraph() {
   return 0;
 }
 
-int AudioObjectGetPropertyData() {
-  // FIXME: implement AudioObjectGetPropertyData
-  panic("not implemented AudioObjectGetPropertyData");
-  return 0;
+int AudioObjectGetPropertyData(uint32_t objectID, void const *address, uint32_t qualifierDataSize,
+                               void const *qualifierData, uint32_t *ioDataSize, void *outData) {
+  if (ioDataSize) *ioDataSize = 0;
+  return kAudioHardwareUnknownPropertyError;
 }
 
-int AudioObjectGetPropertyDataSize() {
-  // FIXME: implement AudioObjectGetPropertyDataSize
-  panic("not implemented AudioObjectGetPropertyDataSize");
-  return 0;
+int AudioObjectGetPropertyDataSize(uint32_t objectID, void const *address, uint32_t qualifierDataSize,
+                                   void const *qualifierData, uint32_t *outDataSize) {
+  if (outDataSize) *outDataSize = 0;
+  return kAudioHardwareUnknownPropertyError;
 }
 
-int AudioObjectSetPropertyData() {
-  // FIXME: implement AudioObjectSetPropertyData
-  panic("not implemented AudioObjectSetPropertyData");
-  return 0;
+int AudioObjectSetPropertyData(uint32_t objectID, void const *address, uint32_t qualifierDataSize,
+                               void const *qualifierData, uint32_t dataSize, void const *data) {
+  return kAudioHardwareUnknownPropertyError;
 }
 
 int AudioOutputUnitStop() {
