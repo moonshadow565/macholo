@@ -12,6 +12,18 @@
 .globl objc_msgSend_fpret_fixup
 .globl objc_msgSend_fp2ret_fixup
 .globl objc_msgSend_stret_fixup
+.globl __objc_personality_v0
+.globl ___chkstk_darwin
+
+// Apple's ObjC EH personality; libobjc2 calls its version __gnu_objc_personality_v0.
+__objc_personality_v0:
+	jmp __gnu_objc_personality_v0@PLT
+
+// Stack probe emitted by the Apple toolchain for large frames. Size comes in %rax and
+// every register (and the flags) must survive. Linux grows the stack for us, so this is
+// a no-op -- but it must still be a real symbol or every large-frame function crashes.
+___chkstk_darwin:
+	ret
 
 #define SaveRegisters \
 	pushq %rdi ;\
