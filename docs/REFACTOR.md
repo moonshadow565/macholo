@@ -174,3 +174,75 @@ Re-evaluate C only if a game needs objc behavior the converter can't express.
 4. Revisit C only on demand.
 
 Every step: League 14.8 + 16.3 to GAMELOOP, headless, `pgrep -x macholo` liveness.
+
+---
+
+# Concrete execution plan (2026-07-31, branch `refactor/stub-split`)
+
+Track 1 made concrete. Decisions below are settled unless a stage proves one wrong;
+workers execute, they don't re-litigate.
+
+## Decisions
+
+1. **Module form: `OBJECT` libraries, aggregated into the single `stub` SHARED lib.**
+   Layout: `stub/src/<module>/CMakeLists.txt` + `add_subdirectory` per module;
+   `stub/CMakeLists.txt` keeps `add_library(stub SHARED)` linking all module objects.
+   OBJECT libs cannot drop unreferenced symbols (no `--whole-archive` games), so the
+   exported surface is bit-identical by construction. Loader/resolver untouched.
+2. **Arch quarantine (the aarch64-Android enabler): new module `arch-x86_64`.**
+   Absorbs `stub_objc.S` (msgSend/superclass thunks, `__objc_personality_v0`,
+   `___chkstk_darwin`) and `__sincos_stret`/friends (x86 two-register-return ABI).
+   Rule going forward: any code that mentions a register, an ABI struct-return
+   convention, or `.S` lives here. An arm64 port adds `arch-aarch64/` beside it and
+   the rest of the tree doesn't care.
+3. **Module set** = the draft table above, plus corrections from the file audit:
+   `iokit` (`stub_iokit.c` — IOKit registry/service surface, missing from the draft
+   table) and `stub_video.c` is empty → **delete it**. `cg` module keeps draft name
+   `stub_nvcg.c` pending the NVIDIA-Cg-vs-CoreGraphics verification.
+4. **Game isolation**: `game-riot` + `game-blizzard` OBJECT libs behind
+   `option(MACHOLO_GAME_STUBS "..." ON)` — default builds identical, exclusion possible.
+5. **Guardrail**: `tools/exports-diff.sh` (in-tree; baseline = 614 dynamic exports of
+   `libstub.so` at `5b6d32a`). Every stage must pass `check` — a refactor that adds or
+   drops an export is wrong until explained (game modules staying in the default build
+   keep even stage 3 diff-clean).
+6. **Regression gate, pinned invocation** (the cwd part bit us: the game resolves
+   `DATA/FINAL/…` and writes `../SOFT_REPAIR` relative to **cwd**, so run from
+   `Contents/MacOS`):
+   ```sh
+   cd ~/Game/$V/LeagueofLegends.app/Contents/MacOS
+   rm -f ../SOFT_REPAIR
+   DISPLAY=:9 timeout 900 $REPO/build/macholo ./LeagueofLegends ~/Game/$V-*.rofl
+   grep -c GAMESTATE_GAMELOOP <log>   # gate: >= 1, for V in 14.8 and 16.3
+   ```
+   (Xvfb `:9`, llvmpipe.) Full game gate after stages 1, 2, and 4; build +
+   exports-diff after every worker.
+
+## Stages → workers
+
+| Stage | Work | Worker | Verify |
+|---|---|---|---|
+| 1 | Scaffold: per-module OBJECT libs + `add_subdirectory` graph, **files move to module dirs but are not split**; create `arch-x86_64` (moves `stub_objc.S`); delete `stub_video.c` | opus | build + exports-diff + full gate |
+| 2a | Dissolve `stub_misc.c`: CFNotificationCenter→`corefoundation`, ClientSdk→`game-blizzard`, sysctl/`malloc_size`→`libsystem`, `__sincos_stret`→`arch-x86_64` | sonnet | build + exports-diff |
+| 2b | Dissolve `misc/`: `Misc.m` CF parts→`corefoundation`, NS parts→`foundation`; `CFURL.m`→`corefoundation` | sonnet | build + exports-diff |
+| 3 | `MACHOLO_GAME_STUBS` option; `stub_riot.c`→`game-riot`; header hygiene (`common.h` is 27 lines — dissolve into module headers if it splits cleanly, else keep) | sonnet | build ×2 (ON+OFF) + exports-diff (ON) |
+| 4 | — | supervisor | full gate, review, PR |
+
+Stages sequential (2a→2b share module CMakeLists; not worth conflict risk).
+Supervisor session runs gates between stages and keeps a second opus in reserve for
+whatever breaks; it reviews diffs rather than re-doing work.
+
+## aarch64 / Android outlook (why the split is shaped like this)
+
+Goal on record: an eventual **arm64 Android replay-playback client**. 16.x League
+macOS builds are FAT and the loader already slices by host arch, so the entry cost is
+the runtime, not the file format. What this refactor contributes: (a) all ISA/ABI
+assembly behind the `arch-x86_64` seam, (b) per-framework libs so a phone client can
+drop `appkit`/GL for a different presentation layer, (c) track-2B mini-CF would
+remove the hardest cross-compile dependency (GNUstep on bionic).
+
+Known gaps, explicitly **out of scope** now, kept as the porting checklist:
+arm64 `objc_msgSend`-family thunks (`arch-aarch64`); arm64e/chained-fixup handling if
+the arm64 slice uses them; comm-page + TLV arm64 layout; bionic-vs-glibc deltas in
+`libsystem`; GNUstep-on-Android (or mini-CF first); SDL2 Android backend for the
+window/GL seam; verify anon-exec-page policy for untrusted apps on target Android
+versions.
