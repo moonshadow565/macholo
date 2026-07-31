@@ -56,11 +56,13 @@ add_library(stub SHARED
     # libSystem
     src/system/stub_asl.c
     src/system/stub_audio.c
+    src/system/stub_carbon.c
     src/system/stub_dispatch.c
     src/system/stub_fs.c
     src/system/stub_io.c
     src/system/stub_kernel.c
     src/system/stub_kernel_kqueue.c
+    src/system/stub_mach_vm.c
     src/system/stub_math.c
     src/system/stub_misc.c
     src/system/stub_nvcg.c
@@ -70,6 +72,7 @@ add_library(stub SHARED
     src/system/stub_pthread.c
     src/system/stub_resolv.c
     src/system/stub_riot.c
+    src/system/stub_securetransport.c
     src/system/stub_rune.c
     src/system/stub_socket.c
     src/system/stub_str.c

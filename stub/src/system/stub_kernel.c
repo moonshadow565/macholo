@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -57,19 +58,18 @@ int *$darwin$__error() {
   return __errno_location();
 }
 
-void bootstrap_port() {
-  // TODO
-  panic("bootstrap_port");
+// DATA: the task's bootstrap server port. There is no launchd here.
+uint32_t bootstrap_port = 0;
+
+kern_return_t host_get_exception_ports(void *host_priv, int mask, uint32_t *masks, unsigned *masksCnt, uint32_t *old_handlers, int *old_behaviors, int *old_flavors) {
+  // Report "no handlers installed" rather than failing: callers save the old
+  // ports so they can chain to them, and an empty list means "nothing to chain to".
+  if (masksCnt) *masksCnt = 0;
+  return KERN_SUCCESS;
 }
 
-void host_get_exception_ports() {
-  // TODO
-  panic("host_get_exception_ports");
-}
-
-void host_set_exception_ports() {
-  // TODO
-  panic("host_set_exception_ports");
+kern_return_t host_set_exception_ports(void *host_priv, int mask, uint32_t new_port, int behavior, int flavor) {
+  return KERN_SUCCESS;
 }
 
 // mach's vm_statistics64_data_t, in the layout host_statistics64(HOST_VM_INFO64) fills.
@@ -149,9 +149,11 @@ int host_page_size(void *host, uintptr_t *out_page_size) {
   return KERN_SUCCESS;
 }
 
-void host_swap_exception_ports() {
-  // TODO
-  panic("host_swap_exception_ports");
+kern_return_t host_swap_exception_ports(void *host_priv, int mask, uint32_t new_port, int behavior, int flavor, uint32_t *masks, unsigned *masksCnt, uint32_t *old_handlers, int *old_behaviors, int *old_flavors) {
+  // Report "no handlers installed" rather than failing: callers save the old
+  // ports so they can chain to them, and an empty list means "nothing to chain to".
+  if (masksCnt) *masksCnt = 0;
+  return KERN_SUCCESS;
 }
 
 void mach_error_string() {
@@ -164,44 +166,51 @@ intptr_t mach_host_self() {
   return 1;
 }
 
-void mach_msg() {
-  // TODO
-  panic("mach_msg");
+// No mach IPC exists. MACH_RCV_TIMED_OUT tells the caller "nothing arrived", which is
+// the one answer a message pump can loop on forever without misbehaving.
+kern_return_t mach_msg(void *msg, int option, uint32_t send_size, uint32_t rcv_size, uint32_t rcv_name,
+                       uint32_t timeout, uint32_t notify) {
+  return 0x10004003; /* MACH_RCV_TIMED_OUT */
 }
 
-void mach_msg_destroy() {
-  // TODO
-  panic("mach_msg_destroy");
+void mach_msg_destroy(void *msg) {
 }
 
-void mach_port_allocate() {
-  // TODO
-  panic("mach_port_allocate");
+// Mach ports are handed out as opaque increasing numbers. Nothing here implements
+// message passing, but the anti-tamper code allocates a port for its exception handler
+// and only ever passes the name back to other (equally inert) mach calls, so a unique
+// non-zero token is all it needs.
+kern_return_t mach_port_allocate(task_t task, int right, uint32_t *name) {
+  static uint32_t next = 0x1000;
+  if (!name) return KERN_INVALID_ARGUMENT;
+  *name = __atomic_add_fetch(&next, 4, __ATOMIC_RELAXED);
+  return KERN_SUCCESS;
 }
 
-void mach_port_deallocate() {
-  // TODO
-  panic("mach_port_deallocate");
+kern_return_t mach_port_deallocate(task_t task, uint32_t name) {
+  return KERN_SUCCESS;
 }
 
-void mach_port_extract_right() {
-  // TODO
-  panic("mach_port_extract_right");
+kern_return_t mach_port_extract_right(task_t task, uint32_t name, int msgt_name, uint32_t *poly, int *polyPoly) {
+  if (poly) *poly = name;
+  if (polyPoly) *polyPoly = msgt_name;
+  return KERN_SUCCESS;
 }
 
-void mach_port_mod_refs() {
-  // TODO
-  panic("mach_port_mod_refs");
+kern_return_t mach_port_mod_refs(task_t task, uint32_t name, int right, int delta) {
+  return KERN_SUCCESS;
 }
 
-void mach_port_request_notification() {
-  // TODO
-  panic("mach_port_request_notification");
+kern_return_t mach_port_request_notification(task_t task, uint32_t name, int msgid, uint32_t sync, uint32_t notify,
+                                             int notifyPoly, uint32_t *previous) {
+  if (previous) *previous = 0;
+  return KERN_SUCCESS;
 }
 
-void mach_thread_self() {
-  // TODO
-  panic("mach_thread_self");
+// A per-thread token. Nothing can be done with a "thread port" here, but it must be
+// unique per thread and stable, which pthread_self already is.
+uint32_t mach_thread_self(void) {
+  return (uint32_t)(uintptr_t)pthread_self();
 }
 
 int mach_timebase_info(mach_timebase_info_t info) {
@@ -315,9 +324,11 @@ kern_return_t $darwin$semaphore_timedwait(semaphore_t semaphore, mach_timespec_t
   return sem_convert_result(result);
 }
 
-void task_get_exception_ports() {
-  // TODO
-  panic("task_get_exception_ports");
+kern_return_t task_get_exception_ports(task_t task, int mask, uint32_t *masks, unsigned *masksCnt, uint32_t *old_handlers, int *old_behaviors, int *old_flavors) {
+  // Report "no handlers installed" rather than failing: callers save the old
+  // ports so they can chain to them, and an empty list means "nothing to chain to".
+  if (masksCnt) *masksCnt = 0;
+  return KERN_SUCCESS;
 }
 
 int task_info(intptr_t target_task, unsigned flavor, void *task_info_out, unsigned *task_info_outCn) {
@@ -330,44 +341,59 @@ int task_info(intptr_t target_task, unsigned flavor, void *task_info_out, unsign
   panic("task_info");
 }
 
-void task_set_exception_ports() {
-  // TODO
-  panic("task_set_exception_ports");
+kern_return_t task_set_exception_ports(task_t task, int mask, uint32_t new_port, int behavior, int flavor) {
+  return KERN_SUCCESS;
 }
 
-void task_swap_exception_ports() {
-  // TODO
-  panic("task_swap_exception_ports");
+kern_return_t task_swap_exception_ports(task_t task, int mask, uint32_t new_port, int behavior, int flavor, uint32_t *masks, unsigned *masksCnt, uint32_t *old_handlers, int *old_behaviors, int *old_flavors) {
+  // Report "no handlers installed" rather than failing: callers save the old
+  // ports so they can chain to them, and an empty list means "nothing to chain to".
+  if (masksCnt) *masksCnt = 0;
+  return KERN_SUCCESS;
 }
 
-void thread_get_exception_ports() {
-  // TODO
-  panic("thread_get_exception_ports");
+kern_return_t thread_get_exception_ports(uint32_t thread, int mask, uint32_t *masks, unsigned *masksCnt, uint32_t *old_handlers, int *old_behaviors, int *old_flavors) {
+  // Report "no handlers installed" rather than failing: callers save the old
+  // ports so they can chain to them, and an empty list means "nothing to chain to".
+  if (masksCnt) *masksCnt = 0;
+  return KERN_SUCCESS;
 }
 
-void thread_set_exception_ports() {
-  // TODO
-  panic("thread_set_exception_ports");
+kern_return_t thread_set_exception_ports(uint32_t thread, int mask, uint32_t new_port, int behavior, int flavor) {
+  return KERN_SUCCESS;
 }
 
-void thread_swap_exception_ports() {
-  // TODO
-  panic("thread_swap_exception_ports");
+kern_return_t thread_swap_exception_ports(uint32_t thread, int mask, uint32_t new_port, int behavior, int flavor, uint32_t *masks, unsigned *masksCnt, uint32_t *old_handlers, int *old_behaviors, int *old_flavors) {
+  // Report "no handlers installed" rather than failing: callers save the old
+  // ports so they can chain to them, and an empty list means "nothing to chain to".
+  if (masksCnt) *masksCnt = 0;
+  return KERN_SUCCESS;
 }
 
-void vm_allocate() {
-  // TODO
-  panic("vm_allocate");
+#define VM_FLAGS_ANYWHERE 0x0001
+
+// Plain page allocation, which is exactly mmap. WC3's unpacker allocates scratch space
+// through this, so it has to work rather than trap.
+kern_return_t vm_allocate(task_t task, uintptr_t *address, size_t size, int flags) {
+  if (!address || !size) return KERN_INVALID_ARGUMENT;
+  void *want = (flags & VM_FLAGS_ANYWHERE) ? NULL : (void *)*address;
+  int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | ((flags & VM_FLAGS_ANYWHERE) ? 0 : MAP_FIXED);
+  void *got = mmap(want, size, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
+  if (got == MAP_FAILED) return KERN_NO_SPACE;
+  *address = (uintptr_t)got;
+  return KERN_SUCCESS;
 }
 
-void vm_deallocate() {
-  // TODO
-  panic("vm_deallocate");
+kern_return_t vm_deallocate(task_t task, uintptr_t address, size_t size) {
+  if (!address || !size) return KERN_SUCCESS;
+  return munmap((void *)address, size) == 0 ? KERN_SUCCESS : KERN_INVALID_ARGUMENT;
 }
 
-void vm_page_size() {
-  // TODO
-  panic("vm_page_size");
+// DATA: mach exports the page size as a variable, not a function.
+uintptr_t vm_page_size = 4096;
+
+__attribute__((constructor)) static void vm_page_size_init(void) {
+  vm_page_size = (uintptr_t)sysconf(_SC_PAGESIZE);
 }
 
 void voucher_mach_msg_set() {
