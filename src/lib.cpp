@@ -3,10 +3,14 @@
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
+#include <set>
+#include <string>
 #include "loader.hpp"
 
 // Stubs that interact with loader in some capacity cant be placed in external library.
@@ -252,6 +256,22 @@ namespace lib::stub {
   }
 }
 
+// Track 3 (docs/surface-audit/VERDICTS.md §7.3): warns exactly once per unaudited
+// symbol name forwarded through the glibc lane, then keeps quiet. Reuses the
+// existing warn_unresolved knob (src/common.hpp) so the whole category can be
+// muted from one place. Binding happens on worker threads through
+// dyld_stub_binder, hence the mutex; std::less<> gives heterogeneous lookup so no
+// std::string is materialised on the repeat path.
+static void warn_once(std::string_view name) {
+  static std::mutex mutex;
+  static std::set<std::string, std::less<>> seen;
+  auto const lock = std::lock_guard{mutex};
+  if (!seen.emplace(name).second) return;
+  warn_unresolved("[resolve] %.*s: not audited, forwarding to the host global scope anyway "
+                  "(set MACHOLO_STRICT_RESOLVE=1 to make this fatal)\n",
+                  (int)name.size(), name.data());
+}
+
 void *lib::resolve(std::string_view name) {
   static std::pair<std::string_view, void *> OVERRIDE[] = {
 #define OVERRIDE(name, into) {name, (void *)into}
@@ -305,7 +325,46 @@ void *lib::resolve(std::string_view name) {
   for (auto const n : BLOCKED)
     if (name.starts_with(n)) return nullptr;
 
-  return ::dlsym(nullptr, name.data());
+  // Track 3 (docs/surface-audit/VERDICTS.md §7.1/§7.2): symbols judged ABI-identical
+  // on Darwin-x86_64 vs glibc-x86_64. Generated from libsystem-verdicts.tsv by
+  // tools/surface-audit.sh -- do not hand-edit, re-run the audit instead.
+  static constexpr std::string_view FORWARD_ALLOWLIST[] = {
+#define FORWARD(sym) sym,  // X-macro: the .inc lines are bare FORWARD("x") with no commas
+#include "forward_allowlist.inc"
+#undef FORWARD
+  };
+  static_assert(std::is_sorted(std::begin(FORWARD_ALLOWLIST), std::end(FORWARD_ALLOWLIST)),
+                "forward_allowlist.inc must be sorted -- re-run tools/surface-audit.sh");
+
+  auto const p = ::dlsym(nullptr, name.data());
+
+  // Supervisor correction (VERDICTS.md §7.2, 2026-07-31): provenance-gate the check.
+  // Lane 4 is how every plain stub-lib export, GNUstep CF/NS symbol and libobjc
+  // symbol resolves too (the flat namespace working as designed) -- none of those
+  // are in the allowlist, so gating on "not on the allowlist" alone would warn on
+  // hundreds of legitimate symbols and panic in strict mode on the first AppKit
+  // class ref. The allowlist requirement applies only to the audited-risk domain:
+  // after dlsym succeeds, dladdr the result; enforce (warn / strict-panic) only if
+  // the defining object is glibc's libc.so.6 or libm.so.6. Resolutions provided by
+  // libstub.so, the GNUstep/sysroot libs, libobjc, libdispatch, libgcc_s, SDL/GL/
+  // asound pass silently. dladdr cost is paid once per symbol (bind results are
+  // cached upstream), and only on the not-allowlisted path.
+  if (p && !std::binary_search(std::begin(FORWARD_ALLOWLIST), std::end(FORWARD_ALLOWLIST), name)) {
+    if (Dl_info info{}; ::dladdr(p, &info) && info.dli_fname) {
+      std::string_view const fname = info.dli_fname;
+      auto const slash = fname.find_last_of('/');
+      auto const base = slash == std::string_view::npos ? fname : fname.substr(slash + 1);
+      if (base == "libc.so.6" || base == "libm.so.6") {
+        static bool const strict = [] {
+          char const *e = ::getenv("MACHOLO_STRICT_RESOLVE");
+          return e && e[0] == '1' && e[1] == '\0';
+        }();
+        if (strict) panic("resolve: %.*s is not on the Track 3 forward allowlist", (int)name.size(), name.data());
+        warn_once(name);
+      }
+    }
+  }
+  return p;
 }
 
 void *lib::resolve_import(std::string_view name) {
