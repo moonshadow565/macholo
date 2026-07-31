@@ -18,6 +18,16 @@
 #   not build it either), and the win32 subproject.
 # Everything that ended up inside libgnustep-base.so.1.29.0 is built here.
 
+# Only the frozen configure output for this triple exists.  Fail loudly rather
+# than compiling the wrong HAVE_*/SIZEOF_* answers: adding a platform means
+# re-running deps/Containerfile there and committing a sibling config directory.
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64"))
+    message(FATAL_ERROR
+        "vendor/gnustep-base-config only has frozen configure output for "
+        "x86_64-linux-gnu, not ${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_SYSTEM_NAME}. "
+        "See docs/GNUSTEP-BUILD.md.")
+endif()
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSBASE_XML REQUIRED IMPORTED_TARGET libxml-2.0)
 pkg_check_modules(GSBASE_TLS REQUIRED IMPORTED_TARGET gnutls)
