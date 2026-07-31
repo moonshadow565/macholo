@@ -280,3 +280,14 @@ So the residual distance is exactly three things, in increasing size:
    `isa`. Under mini-CF the natural answer is to stop pretending literals are CFRuntime
    objects and give them a gnustep constant-string `isa` directly, but that is a `src/`
    change and out of scope for this track.
+
+---
+
+**Status 2026-07-31 (later):** corebase is DELETED from the link (`corebase-kill`
+branch): guest literals convert to gnustep NXConstantStrings (loader re-opens the
+__cfstring page span for the lazy hash write-back), CFBundle is NSBundle-backed,
+and DARWIN_SHADOW now expands to nothing -- mini-CF owns the plain CF names (43
+exports). Residual: deps/Containerfile still *builds* corebase into the sysroot
+(harmless, unlinked); dies with the sysroot when deps are vendored. mini-CF still
+compiles against corebase's CoreFoundation/*.h headers for types -- vendor or
+replace those headers in the vendoring pass.
