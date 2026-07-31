@@ -16,7 +16,18 @@
 #   Tools/make_strings, Tests/, Examples/, Documentation/, the ObjectiveC2
 #   compatibility subproject (OBJC2RUNTIME=1 with libobjc2, so gnustep-make did
 #   not build it either), and the win32 subproject.
-# Everything that ended up inside libgnustep-base.so.1.29.0 is built here.
+# Everything that ended up inside libgnustep-base.so.1.29.0 is built here, MINUS
+# the features slimmed off in 2026-07 (see "Slimmed feature set" in
+# docs/GNUSTEP-BUILD.md).  An LD_DEBUG=bindings trace of a full boot-to-GAMELOOP
+# 16.3 run showed zero binds from our stack into libcurl, libgmp, libxslt and
+# libicui18n, and exactly one into libgnutls (gnutls_free, from TLS class init).
+# So those five are switched off in the frozen config and dropped from the link
+# line here.  Only files that are *entirely* wrapped in the corresponding
+# conditional are removed from the source lists below -- GSTLS.m (all of it is
+# `#if defined(HAVE_GNUTLS)`) and the ten-file NSURLSession/libcurl family that
+# Source/GNUmakefile only adds under GNUSTEP_BASE_HAVE_LIBCURL.  Everything else
+# is left in the list and compiled out by the config macros, because those files
+# are a mix of live and dead code.
 
 # Only the frozen configure output for this triple exists.  Fail loudly rather
 # than compiling the wrong HAVE_*/SIZEOF_* answers: adding a platform means
@@ -30,7 +41,6 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSBASE_XML REQUIRED IMPORTED_TARGET libxml-2.0)
-pkg_check_modules(GSBASE_TLS REQUIRED IMPORTED_TARGET gnutls)
 
 set(GSBASE_SRC   "${CMAKE_CURRENT_SOURCE_DIR}/../gnustep-base")
 set(GSBASE_CFG   "${CMAKE_CURRENT_SOURCE_DIR}/../gnustep-base-config/x86_64-linux-gnu")
@@ -64,7 +74,6 @@ set(GSBASE_SOURCES
     GSStream.m
     GSString.m
     GSTimSort.m
-    GSTLS.m
     GSValue.m
     GSSocksParser/GSSocksParser.m
     GSSocksParser/GSSocksParserPrivate.m
@@ -243,16 +252,6 @@ set(GSBASE_SOURCES
     GSFileHandle.m
     NSMessagePort.m
     NSMessagePortNameServer.m
-    GSEasyHandle.m
-    GSHTTPURLProtocol.m
-    GSMultiHandle.m
-    GSNativeProtocol.m
-    GSTaskRegistry.m
-    GSTimeoutSource.m
-    GSTransferState.m
-    GSURLSessionTaskBody.m
-    GSURLSessionTaskBodySource.m
-    NSURLSession.m
     GSFFIInvocation.m
 )
 list(TRANSFORM GSBASE_SOURCES PREPEND "${GSBASE_SRC}/Source/")
@@ -382,7 +381,7 @@ target_include_directories(gnustep-base-objs PRIVATE
     "${GSBASE_SRC}/Source/Additions"
     "${GSBASE_SRC}/Source/unix"
 )
-target_link_libraries(gnustep-base-objs PRIVATE objc PkgConfig::GSBASE_XML PkgConfig::GSBASE_TLS)
+target_link_libraries(gnustep-base-objs PRIVATE objc PkgConfig::GSBASE_XML)
 
 add_library(gnustep-base SHARED $<TARGET_OBJECTS:gnustep-base-objs>)
 set_target_properties(gnustep-base PROPERTIES
@@ -395,8 +394,7 @@ set_target_properties(gnustep-base PROPERTIES
 target_link_libraries(gnustep-base PRIVATE
     objc
     PkgConfig::GSBASE_XML
-    PkgConfig::GSBASE_TLS
-    -lpthread -lgmp -lxslt -lffi -lz -lrt -ldl -licui18n -ldispatch -lcurl -lm
+    -lpthread -lffi -lz -lrt -ldl -ldispatch -lm
 )
 target_link_options(gnustep-base PRIVATE -pthread -fexceptions -rdynamic)
 

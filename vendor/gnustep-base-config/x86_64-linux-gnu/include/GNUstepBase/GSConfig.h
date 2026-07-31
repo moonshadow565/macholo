@@ -266,14 +266,14 @@ typedef	struct {
 #define BASE_NATIVE_OBJC_EXCEPTIONS     1
 #define GS_NONFRAGILE     1
 #define GS_USE_LIBXML 1
-#define GS_USE_GNUTLS 1
+#define GS_USE_GNUTLS 0	/* macholo: deliberately disabled */
 #define GS_USE_AVAHI 0
 #define GS_USE_MDNS 0
-#define GS_USE_ICU 1
-#define GS_USE_LIBCURL 1
+#define GS_USE_ICU 0	/* macholo: deliberately disabled */
+#define GS_USE_LIBCURL 0	/* macholo: deliberately disabled */
 #define GS_USE_LIBDISPATCH 1
 #define GS_USE_LIBDISPATCH_RUNLOOP 1
-#define GS_HAVE_NSURLSESSION 1
+#define GS_HAVE_NSURLSESSION 0	/* macholo: deliberately disabled */
 #define GS_HAVE_OBJC_ROOT_CLASS_ATTR 1
 #define GS_USE_WIN32_THREADS_AND_LOCKS 0
 

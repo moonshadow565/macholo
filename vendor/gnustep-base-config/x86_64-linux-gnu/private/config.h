@@ -1,6 +1,16 @@
 /* Headers/GNUstepBase/config.h.  Generated from config.h.in by configure.  */
 /* Headers/GNUstepBase/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* ------------------------------------------------------------------------
+ * macholo: this file is *mostly* frozen configure output, but it is no longer
+ * byte-identical to it.  Features that a full boot-to-GAMELOOP LD_DEBUG=bindings
+ * trace proved dead were switched off by hand, so gnustep-base stops dragging
+ * their shared libraries in.  Every hand-edited macro is marked
+ * "macholo: deliberately disabled"; grep for that string to see the full set.
+ * Disabled here: libcurl, gnutls (and with it gmp), libxslt, ICU.
+ * See docs/GNUSTEP-BUILD.md "Slimmed feature set" for the evidence.
+ * ------------------------------------------------------------------------ */
+
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
@@ -203,7 +213,8 @@
 #define HAVE_CTIME 1
 
 /* Define to 1 if you have the <curl/curl.h> header file. */
-#define HAVE_CURL_CURL_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_CURL_CURL_H */
 
 /* Define if you have currency_symbol field in struct lconv */
 #define HAVE_CURRENCY_SYMBOL_IN_LCONV 1
@@ -318,16 +329,20 @@
 /* #undef HAVE_GICONV */
 
 /* Define to 1 if you have the <gmp.h> header file. */
-#define HAVE_GMP_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_GMP_H */
 
 /* Define if libgnutls available */
-#define HAVE_GNUTLS 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_GNUTLS */
 
 /* Define to 1 if you have the `gnutls_transport_set_errno' function. */
-#define HAVE_GNUTLS_TRANSPORT_SET_ERRNO 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_GNUTLS_TRANSPORT_SET_ERRNO */
 
 /* Define to 1 if you have the `gnutls_x509_privkey_import2' function. */
-#define HAVE_GNUTLS_X509_PRIVKEY_IMPORT2 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_GNUTLS_X509_PRIVKEY_IMPORT2 */
 
 /* Define to 1 if you have the `grantpt' function. */
 #define HAVE_GRANTPT 1
@@ -402,10 +417,12 @@
 #define HAVE_LIBXML_SAX2_H 1
 
 /* Define if libxslt available */
-#define HAVE_LIBXSLT 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_LIBXSLT */
 
 /* Define to 1 if you have the <libxslt/xslt.h> header file. */
-#define HAVE_LIBXSLT_XSLT_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_LIBXSLT_XSLT_H */
 
 /* Define to 1 if you have the `z' library (-lz). */
 #define HAVE_LIBZ 1
@@ -740,46 +757,60 @@
 #define HAVE_UNEXPECTED 1
 
 /* Define to 1 if you have the <unicode/ucal.h> header file. */
-#define HAVE_UNICODE_UCAL_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UCAL_H */
 
 /* Define to 1 if you have the <unicode/ucnv.h> header file. */
-#define HAVE_UNICODE_UCNV_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UCNV_H */
 
 /* Define to 1 if you have the <unicode/ucol.h> header file. */
-#define HAVE_UNICODE_UCOL_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UCOL_H */
 
 /* Define to 1 if you have the <unicode/ucurr.h> header file. */
-#define HAVE_UNICODE_UCURR_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UCURR_H */
 
 /* Define to 1 if you have the <unicode/udatpg.h> header file. */
-#define HAVE_UNICODE_UDATPG_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UDATPG_H */
 
 /* Define to 1 if you have the <unicode/udat.h> header file. */
-#define HAVE_UNICODE_UDAT_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UDAT_H */
 
 /* Define to 1 if you have the <unicode/ulocdata.h> header file. */
-#define HAVE_UNICODE_ULOCDATA_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_ULOCDATA_H */
 
 /* Define to 1 if you have the <unicode/uloc.h> header file. */
-#define HAVE_UNICODE_ULOC_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_ULOC_H */
 
 /* Define to 1 if you have the <unicode/unorm2.h> header file. */
-#define HAVE_UNICODE_UNORM2_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UNORM2_H */
 
 /* Define to 1 if you have the <unicode/unum.h> header file. */
-#define HAVE_UNICODE_UNUM_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UNUM_H */
 
 /* Define to 1 if you have the <unicode/uregex.h> header file. */
-#define HAVE_UNICODE_UREGEX_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UREGEX_H */
 
 /* Define to 1 if you have the <unicode/usearch.h> header file. */
-#define HAVE_UNICODE_USEARCH_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_USEARCH_H */
 
 /* Define to 1 if you have the <unicode/ustring.h> header file. */
-#define HAVE_UNICODE_USTRING_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_USTRING_H */
 
 /* Define to 1 if you have the <unicode/utext.h> header file. */
-#define HAVE_UNICODE_UTEXT_H 1
+/* macholo: deliberately disabled, see docs/GNUSTEP-BUILD.md */
+/* #undef HAVE_UNICODE_UTEXT_H */
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
