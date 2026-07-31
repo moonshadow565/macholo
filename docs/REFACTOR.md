@@ -77,7 +77,7 @@ framework's implementation (track 2) without touching the rest.
 | `objc-rt` | `system/stub_objc.c`, `system/stub_objc.S` | objc entry-point shims incl. `object_{get,set}InstanceVariable` ABI fix, personality, chkstk |
 | `libsystem` | `stub_kernel*`, `stub_mach_vm`, `stub_pthread`, `stub_fs`, `stub_io`, `stub_socket`, `stub_sys`, `stub_str`, `stub_process`, `stub_resolv`, `stub_rune`, `stub_dispatch`, `stub_xpc`, `stub_asl`, `stub_math` | the mach/BSD/libc surface; consider sub-splitting mach vs BSD vs math later |
 | `game-riot` (opt-in) | `system/stub_riot.c` | RPatch/mvg — League only |
-| `game-blizzard` (opt-in) | **ClientSdk split out of `stub_misc.c`** | WC3 only |
+| `game-blizzard` (opt-in) | **ClientSdk split out of `stub_misc.c`** | WC3 only. **Correction (2026-07-31): ClientSdk exists only on the `wc3-*` branches, not master — this module materializes when that work merges, following the `game-riot` pattern.** |
 
 Residual `stub_misc.c` after extraction (sysctl/`malloc_size`/`__sincos_stret`) folds
 into `libsystem` (math bits to the math unit). `stub_misc.c` and `Misc.m` cease to
@@ -222,9 +222,9 @@ workers execute, they don't re-litigate.
 | Stage | Work | Worker | Verify |
 |---|---|---|---|
 | 1 | Scaffold: per-module OBJECT libs + `add_subdirectory` graph, **files move to module dirs but are not split**; create `arch-x86_64` (moves `stub_objc.S`); delete `stub_video.c` | opus | build + exports-diff + full gate |
-| 2a | Dissolve `stub_misc.c`: CFNotificationCenter→`corefoundation`, ClientSdk→`game-blizzard`, sysctl/`malloc_size`→`libsystem`, `__sincos_stret`→`arch-x86_64` | sonnet | build + exports-diff |
+| 2a | Dissolve `stub_misc.c`: CFNotificationCenter→`corefoundation`, sysctl/`malloc_size`→`libsystem`, uncategorized leftovers→`libsystem/stub_compat.c` | sonnet | build + exports-diff |
 | 2b | Dissolve `misc/`: `Misc.m` CF parts→`corefoundation`, NS parts→`foundation`; `CFURL.m`→`corefoundation` | sonnet | build + exports-diff |
-| 3 | `MACHOLO_GAME_STUBS` option; `stub_riot.c`→`game-riot`; header hygiene (`common.h` is 27 lines — dissolve into module headers if it splits cleanly, else keep) | sonnet | build ×2 (ON+OFF) + exports-diff (ON) |
+| 3 | `MACHOLO_GAME_STUBS` option; `stub_riot.c`→`game-riot`; move `$darwin$__sincos{,f}_stret` from `libsystem/stub_math.c`→`arch-x86_64` (x86 two-register-return ABI); header hygiene (`common.h` is 27 lines — dissolve into module headers if it splits cleanly, else keep) | sonnet | build ×2 (ON+OFF) + exports-diff (ON) |
 | 4 | — | supervisor | full gate, review, PR |
 
 Stages sequential (2a→2b share module CMakeLists; not worth conflict risk).
