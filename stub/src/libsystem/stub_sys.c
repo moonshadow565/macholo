@@ -8,6 +8,7 @@
 #include <sys/resource.h>
 
 #include <common.h>
+#include "translate.h"
 
 struct $darwin$utsname {
   char sysname[256];
@@ -29,32 +30,48 @@ void arc4random_buf(void *buf, size_t nbytes) {
   memset(buf, 4, nbytes);
 }
 
-int $darwin$sigaction(int sig, const struct $darwin$sigaction *act, struct $darwin$sigaction *oact) {
-  struct sigaction gnu_act;
-  struct sigaction gnu_oact;
-
-  if (sig == SIGPIPE) {
-    // getting action
-    if (act == NULL && oact != NULL) {
-      int result = sigaction(sig, NULL, &gnu_oact);
-      oact->sigaction_u = gnu_oact.sa_handler;
-      oact->sa_flags = gnu_oact.sa_flags;
-      return result;
-    }
-
-    // setting action
-    if (act != NULL && oact == NULL) {
-      // GNU has restorer as well, need to get it
-      sigaction(sig, NULL, &gnu_act);
-      gnu_act.sa_handler = act->sigaction_u;
-      gnu_act.sa_flags = act->sa_flags;
-      int result = sigaction(sig, &gnu_act, NULL);
-      return result;
-    }
+int $darwin$sigaction(int dsig, const struct $darwin$sigaction *act, struct $darwin$sigaction *oact) {
+  // Track 3 follow-up (VERDICTS.md par.9): signo + SA_* flags are translated and
+  // simple handlers are really installed through the stub_signal.c trampoline
+  // (guest handlers expect Darwin signal numbers). SA_SIGINFO (Darwin 0x40)
+  // handlers stay refused: they would receive a Linux-layout siginfo_t, which is
+  // garbage to Darwin-compiled code -- log and pretend success, as before.
+  int lsig = macholo_signo_to_linux(dsig);
+  if (lsig <= 0 || lsig >= 64) {
+    *__errno_location() = EINVAL;
+    return -1;
   }
 
-  fprintf(stderr, "ignoring sigaction: %d...\n", sig);
-  return 0;
+  struct sigaction cur;
+  if (sigaction(lsig, NULL, &cur) != 0) return -1;
+  void (*prev_guest)(int) = macholo_guest_handlers[lsig];
+
+  if (oact) {
+    oact->sigaction_u = prev_guest             ? (void *)prev_guest
+                        : cur.sa_handler == SIG_DFL || cur.sa_handler == SIG_IGN ? (void *)cur.sa_handler
+                                                                                 : (void *)SIG_DFL;
+    oact->sa_flags = (int)macholo_saflags_to_darwin((unsigned)cur.sa_flags);
+    oact->sa_mask = 0;
+  }
+  if (!act) return 0;
+
+  if (act->sa_flags & 0x40) {  // SA_SIGINFO
+    fprintf(stderr, "ignoring SA_SIGINFO sigaction: darwin sig %d\n", dsig);
+    return 0;
+  }
+
+  struct sigaction gnu = {0};
+  gnu.sa_flags = (int)macholo_saflags_to_linux((unsigned)act->sa_flags);
+  sigemptyset(&gnu.sa_mask);
+  void (*h)(int) = (void (*)(int))act->sigaction_u;
+  if (h == SIG_DFL || h == SIG_IGN) {
+    macholo_guest_handlers[lsig] = NULL;
+    gnu.sa_handler = h;
+  } else {
+    macholo_guest_handlers[lsig] = h;
+    gnu.sa_handler = macholo_sig_trampoline;
+  }
+  return sigaction(lsig, &gnu, NULL);
 }
 
 // Answers a sysctl query following the BSD contract: with oldp == NULL just report the

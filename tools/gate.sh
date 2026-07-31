@@ -10,6 +10,9 @@
 set -eu
 V=${1:?usage: gate.sh <version> <logfile>}
 LOG=${2:?usage: gate.sh <version> <logfile>}
+# Strict by default since the Track 3 audit closed: any unaudited glibc bind is a
+# gate failure, not a warning. Override with MACHOLO_STRICT_RESOLVE=0 to debug.
+export MACHOLO_STRICT_RESOLVE=${MACHOLO_STRICT_RESOLVE-1}
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 
 cd ~/Game/"$V"/LeagueofLegends.app/Contents/MacOS

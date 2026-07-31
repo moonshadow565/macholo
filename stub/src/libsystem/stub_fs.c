@@ -84,8 +84,53 @@ static void dirent64_from_linux(struct $darwin$dirent64 *into, struct dirent64 *
   strcpy(into->d_name, from->d_name);
 }
 
-// FIXME: glob$INODE64
-int $darwin$glob$INODE64(const char *pattern, int flags, int (*errfunc)(const char *, int), glob64_t *pglob) { return glob64(pattern, flags, errfunc, pglob); }
+// Darwin glob_t: {size_t gl_pathc; int gl_matchc; size_t gl_offs; int gl_flags;
+// char **gl_pathv; <6 ALTDIRFUNC fn pointers>} -- glibc's glob64_t has gl_pathv
+// second. GLOB_* flag values are permuted too. Results are produced by glibc's
+// glob64 into a scratch struct and the fields copied over; globfree below
+// reconstructs the glibc view to free them (globfree64 only reads
+// pathc/pathv/offs/flags). GLOB_ALTDIRFUNC is refused -- the guest would supply
+// Darwin-layout dirent callbacks.
+struct $darwin$glob_t {
+  size_t gl_pathc;
+  int gl_matchc;
+  size_t gl_offs;
+  int gl_flags;
+  char **gl_pathv;
+  void *gl_fns[6];
+};
+
+static int glob_flags_to_gnu(int f) {
+  int l = 0;
+  if (f & 0x0001) l |= GLOB_APPEND;
+  if (f & 0x0002) l |= GLOB_DOOFFS;
+  if (f & 0x0004) l |= GLOB_ERR;
+  if (f & 0x0008) l |= GLOB_MARK;
+  if (f & 0x0010) l |= GLOB_NOCHECK;
+  if (f & 0x0020) l |= GLOB_NOSORT;
+  if (f & 0x0080) l |= GLOB_BRACE;
+  if (f & 0x0800) l |= GLOB_TILDE;
+  if (f & 0x2000) l |= GLOB_NOESCAPE;
+  return l;
+}
+
+int $darwin$glob$INODE64(const char *pattern, int flags, int (*errfunc)(const char *, int), struct $darwin$glob_t *pglob) {
+  if (flags & 0x0040) panic("glob: GLOB_ALTDIRFUNC from guest");
+  glob64_t g = {0};
+  g.gl_offs = pglob->gl_offs;
+  if (flags & 0x0001) {  // GLOB_APPEND: rebuild the glibc view of prior results
+    g.gl_pathc = pglob->gl_pathc;
+    g.gl_pathv = pglob->gl_pathv;
+    g.gl_flags = glob_flags_to_gnu(pglob->gl_flags);
+  }
+  int r = glob64(pattern, glob_flags_to_gnu(flags), errfunc, &g);
+  pglob->gl_pathc = g.gl_pathc;
+  pglob->gl_matchc = (int)g.gl_pathc;
+  pglob->gl_offs = g.gl_offs;
+  pglob->gl_flags = flags;
+  pglob->gl_pathv = g.gl_pathv;
+  return r;  // 0 / GLOB_NOSPACE(1) / GLOB_ABORTED(2) / GLOB_NOMATCH(3) agree
+}
 
 // TODO: provide more complete filesystem emulation/overlay ?
 struct $darwin$DIR *$darwin$opendir$INODE64(const char *name) {
@@ -351,6 +396,10 @@ int $darwin$fcntl(int fd, int cmd, ...) {
       struct { int64_t offset; int count; } *ra = arg;
       return posix_fadvise(fd, ra->offset, ra->count, POSIX_FADV_WILLNEED) ? -1 : 0;
     }
+    case 73:  // F_SETNOSIGPIPE: per-fd SIGPIPE suppression; the socket shims send
+      return 0;  // with MSG_NOSIGNAL and SIGPIPE is ignored process-wide -- no-op
+    case 74:  // F_GETNOSIGPIPE
+      return 0;
     default:
       fprintf(stderr, "[fcntl] unhandled darwin cmd: %d\n", cmd);
       *__errno_location() = EINVAL;
@@ -380,10 +429,15 @@ int $darwin$removexattr(const char *path, const char *name, int options) {
   return (options & 1) ? lremovexattr(path, name) : removexattr(path, name);
 }
 
-// Paired with $darwin$glob$INODE64 above: whatever layout that shim produced
-// (currently a glibc glob64_t, pre-existing FIXME) is what must be freed here --
-// forwarding to glibc's globfree (non-64) or letting the guest's layout leak
-// through would mismatch the allocation.
-void $darwin$globfree(glob64_t *pglob) {
-  globfree64(pglob);
+// Paired with $darwin$glob$INODE64: reconstruct the glibc view of the results
+// it allocated and let globfree64 release them.
+void $darwin$globfree(struct $darwin$glob_t *pglob) {
+  glob64_t g = {0};
+  g.gl_pathc = pglob->gl_pathc;
+  g.gl_pathv = pglob->gl_pathv;
+  g.gl_offs = pglob->gl_offs;
+  g.gl_flags = glob_flags_to_gnu(pglob->gl_flags);
+  globfree64(&g);
+  pglob->gl_pathv = NULL;
+  pglob->gl_pathc = 0;
 }

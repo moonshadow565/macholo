@@ -47,11 +47,36 @@ char *$darwin$strsignal(int dsig) {
 // against Darwin constants -- trampoline translates. Guest handlers are kept per
 // Linux signo; SIG_DFL/SIG_IGN/SIG_ERR values agree on both sides.
 typedef void (*sig_handler_t)(int);
-static sig_handler_t guest_handlers[64];
+// Shared with $darwin$sigaction (stub_sys.c) via translate.h -- hidden, not exported.
+sig_handler_t macholo_guest_handlers[64];
 
-static void signal_trampoline(int lsig) {
-  sig_handler_t h = (lsig >= 0 && lsig < 64) ? guest_handlers[lsig] : NULL;
+void macholo_sig_trampoline(int lsig) {
+  sig_handler_t h = (lsig >= 0 && lsig < 64) ? macholo_guest_handlers[lsig] : NULL;
   if (h) h(macholo_signo_to_darwin(lsig));
+}
+
+// SA_* flag bits are permuted wholesale (Darwin SA_RESTART=0x2 vs Linux 0x10000000).
+static const struct { unsigned d, l; } SAFLAGS[] = {
+    {0x1, 0x8000000},   // SA_ONSTACK
+    {0x2, 0x10000000},  // SA_RESTART
+    {0x4, 0x80000000},  // SA_RESETHAND
+    {0x8, 0x1},         // SA_NOCLDSTOP
+    {0x10, 0x40000000}, // SA_NODEFER
+    {0x20, 0x2},        // SA_NOCLDWAIT
+};
+
+unsigned macholo_saflags_to_linux(unsigned f) {
+  unsigned l = 0;
+  for (unsigned i = 0; i < sizeof(SAFLAGS) / sizeof(*SAFLAGS); i++)
+    if (f & SAFLAGS[i].d) l |= SAFLAGS[i].l;
+  return l;
+}
+
+unsigned macholo_saflags_to_darwin(unsigned f) {
+  unsigned d = 0;
+  for (unsigned i = 0; i < sizeof(SAFLAGS) / sizeof(*SAFLAGS); i++)
+    if (f & SAFLAGS[i].l) d |= SAFLAGS[i].d;
+  return d;
 }
 
 sig_handler_t $darwin$signal(int dsig, sig_handler_t handler) {
@@ -60,19 +85,19 @@ sig_handler_t $darwin$signal(int dsig, sig_handler_t handler) {
     *__errno_location() = EINVAL;
     return SIG_ERR;
   }
-  sig_handler_t prev_guest = guest_handlers[lsig];
+  sig_handler_t prev_guest = macholo_guest_handlers[lsig];
   sig_handler_t installed;
   if (handler == SIG_DFL || handler == SIG_IGN) {
-    guest_handlers[lsig] = NULL;
+    macholo_guest_handlers[lsig] = NULL;
     installed = signal(lsig, handler);
   } else {
-    guest_handlers[lsig] = handler;
-    installed = signal(lsig, signal_trampoline);
+    macholo_guest_handlers[lsig] = handler;
+    installed = signal(lsig, macholo_sig_trampoline);
   }
   if (installed == SIG_ERR) return SIG_ERR;
   // Previous disposition: a guest handler if one was installed, else whatever
   // the host reports (SIG_DFL/SIG_IGN, which need no translation).
-  return prev_guest ? prev_guest : (installed == signal_trampoline ? SIG_DFL : installed);
+  return prev_guest ? prev_guest : (installed == macholo_sig_trampoline ? SIG_DFL : installed);
 }
 
 // waitpid: option flags WNOHANG/WUNTRACED and the status bit layout agree; only
