@@ -14,6 +14,11 @@ set(STUB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 add_library(stub-flags INTERFACE)
 target_compile_options(stub-flags INTERFACE -Wno-nullability-completeness -Wno-c23-extensions)
 
+# Game-specific modules (game-riot; game-blizzard once it exists) are opt-in: default
+# builds include them (harmless, identical exports), but a per-game/CI build can drop
+# them. See docs/REFACTOR.md "Game isolation".
+option(MACHOLO_GAME_STUBS "Build game-specific stub modules (game-riot)" ON)
+
 # One OBJECT lib per framework/module; see docs/REFACTOR.md track 1.
 add_subdirectory(src/appkit)
 add_subdirectory(src/arch-x86_64)
@@ -23,12 +28,19 @@ add_subdirectory(src/cg)
 add_subdirectory(src/corefoundation)
 add_subdirectory(src/coregraphics)
 add_subdirectory(src/foundation)
-add_subdirectory(src/game-riot)
+if(MACHOLO_GAME_STUBS)
+    add_subdirectory(src/game-riot)
+endif()
 add_subdirectory(src/iokit)
 add_subdirectory(src/libsystem)
 add_subdirectory(src/objc-rt)
 add_subdirectory(src/scriptingbridge)
 add_subdirectory(src/security)
+
+set(STUB_GAME_OBJECTS "")
+if(MACHOLO_GAME_STUBS)
+    list(APPEND STUB_GAME_OBJECTS $<TARGET_OBJECTS:stub-game-riot>)
+endif()
 
 # The modules are aggregated into one SHARED lib so the loader's flat
 # dlsym(nullptr, ...) namespace and the exported surface stay unchanged.
@@ -43,7 +55,7 @@ add_library(stub SHARED
     $<TARGET_OBJECTS:stub-corefoundation>
     $<TARGET_OBJECTS:stub-coregraphics>
     $<TARGET_OBJECTS:stub-foundation>
-    $<TARGET_OBJECTS:stub-game-riot>
+    ${STUB_GAME_OBJECTS}
     $<TARGET_OBJECTS:stub-iokit>
     $<TARGET_OBJECTS:stub-libsystem>
     $<TARGET_OBJECTS:stub-objc-rt>
