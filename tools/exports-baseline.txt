@@ -1,3 +1,7 @@
+$darwin$CFAutorelease
+$darwin$CFMakeCollectable
+$darwin$CFRelease
+$darwin$CFRetain
 $darwin$CFURLCreateFromFileSystemRepresentation
 $darwin$CFURLCreateWithFileSystemPath
 $darwin$CFURLCreateWithString
@@ -95,6 +99,7 @@ $darwin$globfree
 $darwin$if_nametoindex
 $darwin$inet_ntop
 $darwin$inet_pton
+$darwin$kCFAllocatorDefault
 $darwin$kevent
 $darwin$kill
 $darwin$kqueue
