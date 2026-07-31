@@ -12,6 +12,7 @@ $darwin$CFDictionaryContainsValue
 $darwin$CFDictionaryCreate
 $darwin$CFDictionaryGetValue
 $darwin$CFMakeCollectable
+$darwin$CFPropertyListCreateFromXMLData
 $darwin$CFRelease
 $darwin$CFRetain
 $darwin$CFStringCompare
@@ -23,6 +24,8 @@ $darwin$CFURLCreateFromFileSystemRepresentation
 $darwin$CFURLCreateWithFileSystemPath
 $darwin$CFURLCreateWithString
 $darwin$CFURLGetFileSystemRepresentation
+$darwin$CFUUIDCreate
+$darwin$CFUUIDGetUUIDBytes
 $darwin$DebugStr
 $darwin$Gestalt
 $darwin$NDR_record
@@ -117,6 +120,8 @@ $darwin$if_nametoindex
 $darwin$inet_ntop
 $darwin$inet_pton
 $darwin$kCFAllocatorDefault
+$darwin$kCFBooleanFalse
+$darwin$kCFBooleanTrue
 $darwin$kCFTypeArrayCallBacks
 $darwin$kevent
 $darwin$kill

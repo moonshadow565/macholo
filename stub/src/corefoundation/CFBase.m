@@ -23,13 +23,7 @@ CFAllocatorRef kCFAllocatorDefault = NULL;
 // free them out from under the process (verified: three releases and the next use
 // segfaults). Treat them as immortal.
 static Boolean is_immortal(CFTypeRef cf) {
-  static id yes = nil, no = nil;
-  if (yes == nil) {
-    // Idempotent and singleton-valued, so the benign race here is harmless.
-    yes = [NSNumber numberWithBool:YES];
-    no = [NSNumber numberWithBool:NO];
-  }
-  return cf == (CFTypeRef)yes || cf == (CFTypeRef)no;
+  return cf == (CFTypeRef)kCFBooleanTrue || cf == (CFTypeRef)kCFBooleanFalse;
 }
 
 CFTypeRef CFRetain(CFTypeRef cf) {

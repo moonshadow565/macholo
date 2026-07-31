@@ -29,8 +29,11 @@
 #include "CoreFoundation/CFArray.h"
 #include "CoreFoundation/CFBase.h"
 #include "CoreFoundation/CFData.h"
+#include "CoreFoundation/CFDate.h"
 #include "CoreFoundation/CFDictionary.h"
+#include "CoreFoundation/CFPropertyList.h"
 #include "CoreFoundation/CFString.h"
+#include "CoreFoundation/CFUUID.h"
 #include "CoreFoundation/CFURL.h"
 
 // drop this (expand to nothing) when gnustep-corebase is unlinked
@@ -81,6 +84,19 @@ void CFDictionaryApplyFunction(CFDictionaryRef theDict, CFDictionaryApplierFunct
 CFDataRef CFDataCreate(CFAllocatorRef allocator, const UInt8 *bytes, CFIndex length) DARWIN_SHADOW(CFDataCreate);
 const UInt8 *CFDataGetBytePtr(CFDataRef theData) DARWIN_SHADOW(CFDataGetBytePtr);
 CFIndex CFDataGetLength(CFDataRef theData) DARWIN_SHADOW(CFDataGetLength);
+
+// --- CFBoolean / CFUUID / CFPropertyList (CFMisc.m) --------------------------------
+// Do NOT include CoreFoundation/CFNumber.h in this module: it declares the two
+// constants below as `const CFBooleanRef`, and mini-CF has to be able to write them at
+// startup (see CFMisc.m). The typedef is copied from that header verbatim.
+typedef const struct __CFBoolean *CFBooleanRef;
+extern CFBooleanRef kCFBooleanTrue DARWIN_SHADOW(kCFBooleanTrue);
+extern CFBooleanRef kCFBooleanFalse DARWIN_SHADOW(kCFBooleanFalse);
+CFUUIDRef CFUUIDCreate(CFAllocatorRef alloc) DARWIN_SHADOW(CFUUIDCreate);
+CFUUIDBytes CFUUIDGetUUIDBytes(CFUUIDRef uuid) DARWIN_SHADOW(CFUUIDGetUUIDBytes);
+CFPropertyListRef CFPropertyListCreateFromXMLData(CFAllocatorRef allocator, CFDataRef xmlData,
+                                                  CFOptionFlags mutabilityOption, CFStringRef *errorString)
+    DARWIN_SHADOW(CFPropertyListCreateFromXMLData);
 
 // --- CFURL (CFURL.m) --------------------------------------------------------------
 CFURLRef CFURLCreateWithFileSystemPath(CFAllocatorRef allocator, CFStringRef filePath, CFURLPathStyle pathStyle,

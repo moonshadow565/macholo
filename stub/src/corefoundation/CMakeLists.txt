@@ -5,6 +5,7 @@ add_library(stub-corefoundation OBJECT
     CFBundle.m
     CFData.m
     CFDictionary.m
+    CFMisc.m
     CFNotificationCenter.c
     CFString.m
     CFURL.m
