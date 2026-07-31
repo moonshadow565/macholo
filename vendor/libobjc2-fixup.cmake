@@ -14,3 +14,17 @@
 # them, which is why this cannot live in the parent scope.
 set(CMAKE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CMAKE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
+# Second landmine: on the FIRST configure of a fresh build dir, .m files inside
+# this directory classify as OBJC and libobjc2's
+# $<COMPILE_LANGUAGE:OBJC>:-fobjc-runtime=gnustep-2.0 applies. On any RE-configure
+# of an existing dir, project(libobjc C ASM CXX) enables C before OBJC exists in
+# the cache-restored language set and the same .m files silently reclassify as C
+# -- the runtime flag vanishes, associate.m/properties.m/fast_paths.m compile
+# against the legacy GCC runtime, and every binary aborts at startup with
+# "Version 2 Objective-C ABI may not be mixed with earlier versions."
+# Pin the classification explicitly; properties set here (directory scope, before
+# the targets are defined) stick to the vendored sources without editing them.
+enable_language(OBJC)
+file(GLOB _macholo_libobjc2_m "${CMAKE_CURRENT_SOURCE_DIR}/*.m")
+set_source_files_properties(${_macholo_libobjc2_m} PROPERTIES LANGUAGE OBJC)
