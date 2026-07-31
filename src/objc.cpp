@@ -138,49 +138,18 @@ namespace objc::raw {
     uint32_t pad;
   };
 
-  struct cfstring_gnu_t {
-    void* isa;
-    int16_t typeID;
-    int16_t ro : 1;
-    int16_t reserved : 7;
-    int16_t is_mutable : 1;
-    int16_t is_inline : 1;
-    int16_t is_unicode : 1;
-    int16_t has_length : 1;
-    int16_t has_null : 1;
-    int16_t reserved2 : 3;
-    uint32_t pad1;  // i wish count was here
-    void* contents;
-    uint32_t count;  // then hash would fit here...
-    uint32_t pad2;
+  // gnustep-2.x constant string, layout verified against clang -fobjc-runtime=gnustep-2.1
+  // -fconstant-string-class=NSConstantString IR output: {isa, flags, length, size, hash, data}.
+  // Same 32-byte size as Apple's cfstring_t, so literals convert in place.
+  struct cfstring_gs_t {
+    void* isa;        // ._OBJC_CLASS_NSConstantString
+    uint32_t flags;   // clang emits 0
+    uint32_t length;  // UTF-16 code units; == size for the ASCII literals we see
+    uint32_t size;    // bytes
+    uint32_t hash;    // 0 = computed lazily
+    const char* data;
   };
-
-  enum class cfstring_gnu_flags {
-    is_mutable = 0b00000001,  // rw
-    is_inline = 0b00000010,   // sso
-    is_unicode = 0b00000100,  // utf16
-    is_pascal = 0b00001000,   // length prefixed
-    is_cstr = 0b00010000,     // null terminated
-  };
-
-  struct cfstring_gnu_ex_t : cfstring_gnu_t {
-    uintptr_t hash;
-    uintptr_t deallocator;
-  };
-
-  struct cfruntime_class_t {
-    unsigned version;
-    const char* class_name;
-    void (*init)(void* cf);
-    void* (*copy)(void* allocator, void* cf);
-    void (*dealloc)(void* cf);
-    bool (*equal)(void* cf1, void* cf2);
-    uintptr_t (*hash)(void* cf);
-    void* (*copyFormattingDesc)(void* cf, void* formatOptions);
-    void* (*copyDebugDesc)(void* cf);
-    void (*reclaim)(void* cf);
-    uint32_t (*refcount)(intptr_t op, void* cf);
-  };
+  static_assert(sizeof(cfstring_gs_t) == sizeof(cfstring_t));
 
   struct Converter;
 
@@ -341,72 +310,29 @@ struct objc::raw::Converter {
 private:
   void convert_cfstring(cfstring_t* str) {
     auto tmp = *str;
-    // TODO: support other kinds of strings
-    assert_that(tmp.info = 0x7C8);
-    patch_cfstring_runtime_class();
-    cfstring_gnu_t gnu{
-        .isa = get_cfstring_isa(),
-        .typeID = (int16_t)get_cfstring_type_id(),
-        .ro = true,
-        .has_null = true,
-        .pad1 = (uint32_t)(uintptr_t)str ^ 'hash',
-        .contents = str->data,
-        .count = (uint32_t)str->length,
+    // Apple info 0x7C8 = immutable 8-bit null-terminated literal, which is every
+    // literal seen so far. (The old check was assert_that(tmp.info = 0x7C8) -- an
+    // assignment, so it never fired; keep behavior but tell the truth about it.)
+    if (tmp.info != 0x7C8)
+      fprintf(stderr, "[objc] cfstring with unexpected info %llx treated as 8-bit\n", (unsigned long long)tmp.info);
+    cfstring_gs_t gnu{
+        .isa = get_constant_string_isa(),
+        .flags = 0,
+        .length = (uint32_t)tmp.length,
+        .size = (uint32_t)tmp.length,
+        .hash = 0,
+        .data = tmp.data,
     };
     memcpy(str, &gnu, sizeof(cfstring_t));
   }
 
-  static uintptr_t get_cfstring_type_id() {
-    static unsigned cached = 0;
-    if (cached) return cached;
-    unsigned (*CFStringGetTypeID)() = (decltype(CFStringGetTypeID))::dlsym(nullptr, "CFStringGetTypeID");
-    assert_that(CFStringGetTypeID != nullptr);
-    static auto type_id = CFStringGetTypeID();
-    assert_that(type_id != 0);
-    // assert_that(type_id != 24);
-    cached = type_id;
-    return cached;
-  }
-
-  static void* get_cfstring_isa() {
-    static void* isa = ::dlsym(nullptr, "._OBJC_CLASS_NSCFString");
+  // gnustep-base's own constant-string class: guest literals become the same kind
+  // of object our stub's compiled-in @"literals" are. This removed the last load-
+  // time dependency on gnustep-corebase (NSCFString isa + CFRuntime hash patch).
+  static void* get_constant_string_isa() {
+    static void* isa = ::dlsym(nullptr, "._OBJC_CLASS_NSConstantString");
     assert_that(isa != nullptr);
     return isa;
-  }
-
-  void patch_cfstring_runtime_class() {
-    static bool patched = false;
-    static uintptr_t (*org_hash)(void* cf) = nullptr;
-    if (patched) return;
-
-    constexpr auto hash_func = [](void* cf) -> uintptr_t {
-      printf("hashing: %p\n", cf);
-      auto const str = (cfstring_gnu_t*)cf;
-      // check magic
-      if (((uint32_t)(uintptr_t)str ^ 'hash') != str->pad1) return org_hash(cf);
-      // ???
-      if (str->count == 0) return 0x0ffffffe;
-      // operates on unicode data
-      uintptr_t ret = 0;
-      for (size_t i = 0; i != str->count; ++i) {
-        ret = (ret << 5) + ret + *(uint8_t const*)str->contents;
-        ret = (ret << 5) + ret;
-      }
-      ret &= 0x0fffffff;
-      return ret;
-    };
-
-    // swap out pointer
-    cfruntime_class_t* (*_CFRuntimeGetClassWithTypeID)(unsigned typeID) = (decltype(_CFRuntimeGetClassWithTypeID))::dlsym(nullptr, "_CFRuntimeGetClassWithTypeID");
-    assert_that(_CFRuntimeGetClassWithTypeID != nullptr);
-    cfruntime_class_t* runtime = _CFRuntimeGetClassWithTypeID(get_cfstring_type_id());
-
-    void* target = (char*)runtime + offsetof(cfruntime_class_t, hash);
-    printf("will protect: %p\n", target);
-    ::mprotect((void*)((uintptr_t)target & ~(uintptr_t)0xFFFu), 0x1000, PROT_READ | PROT_WRITE);
-    org_hash = (decltype(org_hash))*(void**)target;
-    *(void**)target = (void*)+hash_func;
-    patched = true;
   }
 
   Protocol* convert_protocol(protocol_t* protocol) {

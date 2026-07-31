@@ -232,6 +232,19 @@ void loader::Image::protect() {
       fprintf(stderr, "warning: mprotect(%s) failed: %s\n", seg.name.c_str(), strerror(errno));
     }
   }
+
+  // Guest string literals were converted (objc.cpp) into gnustep constant strings,
+  // whose -hash lazily writes the computed hash back into the object -- but they
+  // live in __DATA_CONST, which the loop above just sealed read-only. Re-open the
+  // __cfstring span (page-granular) so that write-back works; the old corebase
+  // path dodged this by live-patching corebase's hash function instead.
+  if (auto const cfstrings = find_section<char>("__cfstring"); !cfstrings.empty()) {
+    auto const lo = (uintptr_t)cfstrings.data() & ~(uintptr_t)0xFFFu;
+    auto const hi = ((uintptr_t)cfstrings.data() + cfstrings.size() + 0xFFF) & ~(uintptr_t)0xFFFu;
+    if (::mprotect((void*)lo, hi - lo, PROT_READ | PROT_WRITE) != 0) {
+      fprintf(stderr, "warning: mprotect(__cfstring) failed: %s\n", strerror(errno));
+    }
+  }
 }
 
 void loader::Image::bind() {
