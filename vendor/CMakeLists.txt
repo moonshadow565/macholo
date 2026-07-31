@@ -62,3 +62,19 @@ set(CMAKE_CXX_FLAGS "${_saved_CXX_FLAGS}")
 set(CMAKE_OBJCXX_FLAGS "${_saved_OBJCXX_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${_saved_SHARED_LINKER_FLAGS}")
 
+# ---------------------------------------------------------------------------
+# gnustep-base (hand-written CMake over the vendored sources)
+# ---------------------------------------------------------------------------
+add_subdirectory(gnustep-base-cmake)
+
+# ---------------------------------------------------------------------------
+# CoreFoundation headers for mini-CF (headers only, no corebase code)
+# ---------------------------------------------------------------------------
+add_library(corebase-headers INTERFACE)
+target_include_directories(corebase-headers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/corebase-headers")
+
+# ---------------------------------------------------------------------------
+# The aggregate the consumer links against.
+# ---------------------------------------------------------------------------
+add_library(gnustep-vendored INTERFACE)
+target_link_libraries(gnustep-vendored INTERFACE gnustep-base corebase-headers)
