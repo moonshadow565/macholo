@@ -1,0 +1,215 @@
+symbol	apple_sublib	verdict	reason	note
+_dispatch_once_f	libdispatch	FORWARD	-	NOT missing: /usr/lib64/libdispatch.so (swift-corelibs-libdispatch, Apple's own source) is in the global scope via the GNUstep chain, so dlsym(nullptr,..) already binds it. surface-audit.sh's host-lib list (libGL/libasound/libSDL2) was incomplete. VERIFIED on this host: dispatch_once_f runs the callout once and leaves the predicate at 0xffffffffffffffff, which is exactly the ~0l DLOCK_ONCE_DONE sentinel the guest's inlined dispatch_once() fast path tests
+_dispatch_semaphore_create	libdispatch	FORWARD	-	NOT missing: /usr/lib64/libdispatch.so (swift-corelibs-libdispatch, Apple's own source) is in the global scope via the GNUstep chain, so dlsym(nullptr,..) already binds it. surface-audit.sh's host-lib list (libGL/libasound/libSDL2) was incomplete. VERIFIED: create(0)/signal/wait round-trips; dispatch_semaphore_t is an opaque pointer on both
+_dispatch_semaphore_signal	libdispatch	FORWARD	-	NOT missing: /usr/lib64/libdispatch.so (swift-corelibs-libdispatch, Apple's own source) is in the global scope via the GNUstep chain, so dlsym(nullptr,..) already binds it. surface-audit.sh's host-lib list (libGL/libasound/libSDL2) was incomplete. VERIFIED: returns 0 when no waiter was woken
+_dispatch_semaphore_wait	libdispatch	FORWARD	-	NOT missing: /usr/lib64/libdispatch.so (swift-corelibs-libdispatch, Apple's own source) is in the global scope via the GNUstep chain, so dlsym(nullptr,..) already binds it. surface-audit.sh's host-lib list (libGL/libasound/libSDL2) was incomplete. VERIFIED: DISPATCH_TIME_NOW==0 returns non-zero on an empty semaphore and DISPATCH_TIME_FOREVER==~0ull returns 0 after a signal, matching Darwin
+___memcpy_chk	libsystem_c	FORWARD	-	the _FORTIFY_SOURCE helper ABI is defined by the compiler builtin (__builtin___*_chk), which Apple's clang lowers exactly as GCC/glibc do
+___memmove_chk	libsystem_c	FORWARD	-	the _FORTIFY_SOURCE helper ABI is defined by the compiler builtin (__builtin___*_chk), which Apple's clang lowers exactly as GCC/glibc do
+___memset_chk	libsystem_c	FORWARD	-	the _FORTIFY_SOURCE helper ABI is defined by the compiler builtin (__builtin___*_chk), which Apple's clang lowers exactly as GCC/glibc do
+___sprintf_chk	libsystem_c	FORWARD	-	the _FORTIFY_SOURCE helper ABI is defined by the compiler builtin; x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin long double == double while AAPCS64 uses binary128, so %Lf/%La diverge
+___stack_chk_fail	libsystem_c	FORWARD	-	both abort; the guard value itself already comes from the $darwin$__stack_chk_guard data shim
+___strcat_chk	libsystem_c	FORWARD	-	the _FORTIFY_SOURCE helper ABI is defined by the compiler builtin (__builtin___*_chk), which Apple's clang lowers exactly as GCC/glibc do
+___strncpy_chk	libsystem_c	FORWARD	-	the _FORTIFY_SOURCE helper ABI is defined by the compiler builtin (__builtin___*_chk), which Apple's clang lowers exactly as GCC/glibc do
+_abort	libsystem_c	FORWARD	-	
+_atof	libsystem_c	FORWARD	-	
+_atoi	libsystem_c	FORWARD	-	
+_atoll	libsystem_c	FORWARD	-	
+_backtrace	libsystem_c	INVESTIGATE	semantics	prototype is identical, but glibc's backtrace() runs _Unwind_Backtrace, which resolves FDEs via dl_iterate_phdr and therefore sees no ELF object for a Mach-O guest frame; libgcc returns _URC_FATAL_PHASE1_ERROR rather than a clean end-of-stack in that case. SETTLE BY: calling it from guest code in the 16.15 sample and checking it returns instead of faulting. Sibling evidence: backtrace_from_fp is already stubbed to return 0, so stubbing this to 0 is the cheap safe answer
+_basename	libsystem_c	SHIM	semantics	dlsym picks glibc's GNU basename (from <string.h>), which never strips trailing slashes: basename("/a/b/") is "" on glibc but "b" on Darwin, and "" maps to "." on Darwin. The POSIX one in glibc is __xpg_basename
+_clearerr	libsystem_c	FORWARD	-	
+_clock_gettime	libsystem_c	SHIM	flags	HIGH IMPACT. Darwin CLOCK_MONOTONIC=6 lands on Linux CLOCK_MONOTONIC_COARSE=6, so the game's frame clock silently degrades to ~4 ms granularity instead of failing. Darwin CLOCK_THREAD_CPUTIME_ID=16 and CLOCK_PROCESS_CPUTIME_ID=12 are invalid on Linux; CLOCK_REALTIME=0 and CLOCK_MONOTONIC_RAW=4 happen to match. struct timespec is identical
+_difftime	libsystem_c	FORWARD	-	
+_dirname	libsystem_c	SHIM	semantics	glibc's dirname MODIFIES its argument in place; Darwin's copies into a per-thread buffer and leaves the input alone. A guest passing a string literal or a shared buffer gets it clobbered
+_exit	libsystem_c	FORWARD	-	
+_fclose	libsystem_c	FORWARD	-	
+_feof	libsystem_c	FORWARD	-	
+_ferror	libsystem_c	FORWARD	-	
+_fflush	libsystem_c	FORWARD	-	
+_fgetc	libsystem_c	FORWARD	-	
+_fgets	libsystem_c	FORWARD	-	
+_fileno	libsystem_c	FORWARD	-	
+_fopen	libsystem_c	FORWARD	-	
+_fprintf	libsystem_c	FORWARD	-	x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin long double == double while AAPCS64 uses binary128, so %Lf/%La diverge
+_fputc	libsystem_c	FORWARD	-	
+_fputs	libsystem_c	FORWARD	-	
+_fread	libsystem_c	FORWARD	-	
+_freopen	libsystem_c	FORWARD	-	
+_fseek	libsystem_c	FORWARD	-	
+_fseeko	libsystem_c	FORWARD	-	
+_ftell	libsystem_c	FORWARD	-	
+_ftello	libsystem_c	FORWARD	-	
+_fwrite	libsystem_c	FORWARD	-	
+_getc	libsystem_c	FORWARD	-	
+_getcwd	libsystem_c	FORWARD	-	
+_getenv	libsystem_c	FORWARD	-	
+_gettimeofday	libsystem_c	FORWARD	-	struct timeval layouts are NOT identical (Darwin suseconds_t is int32 + 4 pad; glibc tv_usec is a full long), but gettimeofday is write-only and tv_usec < 10^6, so little-endian aliasing is exact. Do NOT forward any timeval-INPUT function the same way -- note that the existing $darwin$select$1050 shim passes the guest's timeval straight through, which is this bug
+_gmtime	libsystem_c	FORWARD	-	struct tm layouts match field-for-field including tm_gmtoff/tm_zone
+_gmtime_r	libsystem_c	FORWARD	-	struct tm layouts match field-for-field including tm_gmtoff/tm_zone
+_inet_addr	libsystem_c	FORWARD	-	
+_localeconv	libsystem_c	INVESTIGATE	struct	the 10 leading char* fields definitely agree, but Darwin appears to order the trailing chars int_p_cs_precedes, int_n_cs_precedes, int_p_sep_by_space, int_n_sep_by_space, ... while glibc orders them int_p_cs_precedes, int_p_sep_by_space, int_n_cs_precedes, ... SETTLE BY: diffing a real macOS <locale.h> struct lconv. Only decimal_point/thousands_sep matter to a game, so the hazard is small either way
+_localtime	libsystem_c	FORWARD	-	struct tm layouts match field-for-field including tm_gmtoff/tm_zone
+_localtime_r	libsystem_c	FORWARD	-	struct tm layouts match field-for-field including tm_gmtoff/tm_zone
+_memchr	libsystem_c	FORWARD	-	
+_memcmp	libsystem_c	FORWARD	-	
+_memcpy	libsystem_c	FORWARD	-	
+_memmove	libsystem_c	FORWARD	-	
+_memset	libsystem_c	FORWARD	-	
+_nanosleep	libsystem_c	FORWARD	-	
+_newlocale	libsystem_c	SHIM	flags	LC_*_MASK is 1<<category, so the permuted category numbers permute the masks too (Darwin LC_ALL_MASK=0x3f vs glibc's 0x1fbf). locale_t itself is an opaque pointer on both
+_pclose	libsystem_c	FORWARD	-	
+_popen	libsystem_c	FORWARD	-	identical; the child runs the host /bin/sh, so macOS-shaped command strings still fail
+_posix_spawnp	libsystem_c	SHIM	struct	posix_spawnattr_t and posix_spawn_file_actions_t are 8-byte opaque pointers on Darwin but 336- and 80-byte inline structs in glibc, and POSIX_SPAWN_* diverge above 0x08 (Darwin SETEXEC=0x40, START_SUSPENDED=0x80). Also sigset_t is 4 bytes vs 128
+_qsort	libsystem_c	FORWARD	-	prototype identical; ordering of EQUAL elements differs (Darwin uses an introsort-family algorithm, glibc mergesort with a qsort fallback). Determinism watch list, not an ABI defect
+_rand	libsystem_c	FORWARD	-	prototype and RAND_MAX (0x7fffffff) identical; sequences differ (Darwin: 16807 minimal-standard LCG, glibc: TYPE_3 additive feedback). Determinism watch list
+_rand_r	libsystem_c	FORWARD	-	see rand: same seed produces a different stream. Determinism watch list
+_recv	libsystem_c	SHIM	flags	MSG_* diverge above bit 3: Darwin MSG_WAITALL=0x40 is Linux MSG_DONTWAIT, Darwin MSG_DONTWAIT=0x80 is Linux MSG_EOR, Darwin MSG_TRUNC=0x10 is Linux MSG_PROBE. recvfrom/sendto are already shimmed
+_remove	libsystem_c	FORWARD	-	
+_rewind	libsystem_c	FORWARD	-	
+_send	libsystem_c	SHIM	flags	same MSG_* divergence as recv; also Darwin MSG_NOSIGNAL=0x80000 has no Linux counterpart (Linux MSG_NOSIGNAL=0x4000)
+_setbuf	libsystem_c	SHIM	flags	BUFSIZ is 1024 on Darwin and 8192 in glibc, and setbuf() means setvbuf(fp,buf,_IOFBF,BUFSIZ). glibc overruns the guest's BUFSIZ-sized buffer by 7 KiB. setvbuf (explicit size) is fine
+_setlocale	libsystem_c	SHIM	flags	LC_* categories are permuted: Darwin LC_ALL=0 LC_COLLATE=1 LC_CTYPE=2 LC_MONETARY=3 LC_NUMERIC=4 LC_TIME=5 LC_MESSAGES=6; glibc LC_CTYPE=0 LC_NUMERIC=1 LC_TIME=2 LC_COLLATE=3 LC_MONETARY=4 LC_MESSAGES=5 LC_ALL=6. setlocale(LC_ALL,"") therefore only sets LC_CTYPE
+_setvbuf	libsystem_c	FORWARD	-	
+_signal	libsystem_c	SHIM	flags	same signo divergence as kill; SIG_DFL/SIG_IGN/SIG_ERR do match. Sibling red flag: $darwin$sigaction already exists (stub_sys.c) but only special-cases SIGPIPE, which is 13 on both
+_snprintf	libsystem_c	FORWARD	-	x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin long double == double while AAPCS64 uses binary128, so %Lf/%La diverge
+_sprintf	libsystem_c	FORWARD	-	x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin long double == double while AAPCS64 uses binary128, so %Lf/%La diverge
+_srand	libsystem_c	FORWARD	-	see rand: same seed produces a different stream. Determinism watch list
+_sscanf	libsystem_c	FORWARD	-	x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin long double == double while AAPCS64 uses binary128, so %Lf/%La diverge
+_strcasecmp	libsystem_c	FORWARD	-	
+_strcasestr	libsystem_c	FORWARD	-	
+_strcat	libsystem_c	FORWARD	-	
+_strchr	libsystem_c	FORWARD	-	
+_strcmp	libsystem_c	FORWARD	-	
+_strcoll	libsystem_c	FORWARD	-	ABI identical; collation ORDER differs between glibc and Darwin under non-C locales, so any guest sort keyed on strcoll is a determinism hazard, not a correctness one
+_strcpy	libsystem_c	FORWARD	-	
+_strcspn	libsystem_c	FORWARD	-	
+_strdup	libsystem_c	FORWARD	-	allocator-consistent: the guest frees through the same forwarded glibc free()
+_strerror	libsystem_c	SHIM	errno	errno numbering diverges from 11 up (Darwin EDEADLK=11 vs Linux EAGAIN=11) and completely from 35 up (Darwin EAGAIN=35 vs Linux EDEADLK=35). Guest call sites pass literal Darwin E* constants. See the cross-cutting errno section in VERDICTS.md
+_strerror_r	libsystem_c	SHIM	signature	glibc's exported strerror_r is the GNU variant returning char* and possibly not touching the buffer; Darwin's is XSI (int return, always fills the buffer). The guest reads a truncated pointer as the int result and an untouched buffer. glibc's XSI variant is __xpg_strerror_r
+_strftime	libsystem_c	FORWARD	-	
+_strlen	libsystem_c	FORWARD	-	
+_strncasecmp	libsystem_c	FORWARD	-	
+_strncat	libsystem_c	FORWARD	-	
+_strncmp	libsystem_c	FORWARD	-	
+_strncpy	libsystem_c	FORWARD	-	
+_strpbrk	libsystem_c	FORWARD	-	
+_strptime	libsystem_c	INVESTIGATE	semantics	signature and return convention match, but Darwin's strptime is FreeBSD-derived and glibc's differs on %Z (glibc only accepts known zone names), on %p outside the C locale, and on whether unmatched struct tm fields are left untouched. SETTLE BY: running the format strings the 16.15 binary actually passes (grep the __TEXT,__cstring refs at the call sites) through both libcs
+_strrchr	libsystem_c	FORWARD	-	
+_strsignal	libsystem_c	SHIM	flags	signo divergence: strsignal(Darwin SIGCHLD=20) returns glibc's "Stopped"
+_strspn	libsystem_c	FORWARD	-	
+_strstr	libsystem_c	FORWARD	-	
+_strtod	libsystem_c	FORWARD	-	identical; the decimal separator comes from the host global locale, so it only behaves once setlocale is shimmed
+_strtod_l	libsystem_c	SHIM	semantics	Darwin's *_l functions normalise loc==NULL to the global locale (NORMALIZE_LOCALE); glibc's dereference it and crash. Sibling evidence: $darwin$vsnprintf_l already exists
+_strtok	libsystem_c	FORWARD	-	
+_strtok_r	libsystem_c	FORWARD	-	
+_strtol	libsystem_c	FORWARD	-	
+_strtoll	libsystem_c	FORWARD	-	
+_strtoul	libsystem_c	FORWARD	-	
+_strtoull	libsystem_c	FORWARD	-	
+_sysconf	libsystem_c	SHIM	flags	the entire _SC_* namespace is renumbered: Darwin _SC_PAGESIZE=29 / _SC_NPROCESSORS_ONLN=58 / _SC_PHYS_PAGES=200 vs Linux 30 / 84 / 85, and every name below that is off by one. A core-count query returns an unrelated limit or -1
+_tcgetattr	libsystem_c	SHIM	struct	struct termios is a different shape: Darwin tcflag_t/speed_t are unsigned long (64-bit) with NCCS=20 and no c_line; glibc uses unsigned int with c_line and NCCS=32. VMIN/VTIME live at index 16/17 vs 6/5, and ICANON is 0x100 vs 0x2
+_tcsetattr	libsystem_c	SHIM	struct	same struct termios divergence as tcgetattr; TCSANOW/TCSADRAIN/TCSAFLUSH 0/1/2 do match
+_time	libsystem_c	FORWARD	-	
+_timegm	libsystem_c	FORWARD	-	
+_ungetc	libsystem_c	FORWARD	-	
+_usleep	libsystem_c	FORWARD	-	
+_vfprintf	libsystem_c	FORWARD	-	x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin va_list is a plain char* vs AAPCS64's struct va_list, and long double differs -- re-verify the whole v*printf/v*scanf family on the arm64 track
+_vsnprintf	libsystem_c	FORWARD	-	x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin va_list is a plain char* vs AAPCS64's struct va_list, and long double differs -- re-verify the whole v*printf/v*scanf family on the arm64 track
+_vsprintf	libsystem_c	FORWARD	-	x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin va_list is a plain char* vs AAPCS64's struct va_list, and long double differs -- re-verify the whole v*printf/v*scanf family on the arm64 track
+_vsscanf	libsystem_c	FORWARD	-	x86_64 only: identical varargs ABI and 80-bit x87 long double. arm64 caveat: Darwin va_list is a plain char* vs AAPCS64's struct va_list, and long double differs -- re-verify the whole v*printf/v*scanf family on the arm64 track
+_waitpid	libsystem_c	SHIM	flags	LOW PRIORITY. WNOHANG/WUNTRACED and the WIFEXITED/WEXITSTATUS bit encoding are identical; only the signal number inside WTERMSIG/WSTOPSIG is Linux-numbered. Fold into the kill/signal signo table
+_wcslen	libsystem_c	FORWARD	-	wchar_t is a 32-bit int on both Darwin x86_64 and Linux
+_wmemcmp	libsystem_c	FORWARD	-	wchar_t is a 32-bit int on both Darwin x86_64 and Linux
+__exit	libsystem_kernel	FORWARD	-	
+_access	libsystem_kernel	FORWARD	-	F_OK/X_OK/W_OK/R_OK are 0/1/2/4 on both
+_chmod	libsystem_kernel	FORWARD	-	mode_t is uint16_t on Darwin vs uint32_t on glibc; on x86_64 the caller extends narrow args to 32 bits so the callee's 32-bit read is exact. Permission bits identical. arm64 caveat: Apple's arm64 ABI makes the *callee* responsible for extension -- recheck
+_fcntl	libsystem_kernel	SHIM	flags	F_GETLK/F_SETLK/F_SETLKW are 7/8/9 on Darwin vs 5/6/7 on Linux, F_GETOWN/F_SETOWN 5/6 vs 9/8, F_DUPFD_CLOEXEC 67 vs 1030; struct flock field order differs; F_GETPATH/F_FULLFSYNC/F_NOCACHE/F_RDADVISE/F_PREALLOCATE have no Linux equivalent
+_flock	libsystem_kernel	FORWARD	-	LOCK_SH/EX/NB/UN are 1/2/4/8 on both
+_ftruncate	libsystem_kernel	FORWARD	-	
+_getegid	libsystem_kernel	FORWARD	-	
+_geteuid	libsystem_kernel	FORWARD	-	
+_getgid	libsystem_kernel	FORWARD	-	
+_getpid	libsystem_kernel	FORWARD	-	
+_getrlimit	libsystem_kernel	SHIM	flags	RLIMIT_NOFILE is 8 on Darwin but 7 on Linux (8 == RLIMIT_MEMLOCK); NPROC 7 vs 6; AS 5 vs 9. RLIM_INFINITY is 0x7fffffffffffffff on Darwin vs ~0UL on Linux
+_getrusage	libsystem_kernel	SHIM	struct	ru_utime/ru_stime are struct timeval, whose tv_usec is int32 on Darwin vs long on glibc; ru_maxrss is documented in BYTES on Darwin but KiB on Linux. RUSAGE_SELF/CHILDREN do match
+_getuid	libsystem_kernel	FORWARD	-	
+_getxattr	libsystem_kernel	SHIM	signature	Darwin: ssize_t getxattr(path,name,value,size,uint32_t position,int options) -- 6 args. Linux: 4 args. The extra Darwin args land in registers glibc never reads, and XATTR_NOFOLLOW is lost
+_kill	libsystem_kernel	SHIM	flags	signal numbers diverge from 10 up: Darwin SIGBUS=10 is Linux SIGUSR1, Darwin SIGSYS=12 is Linux SIGUSR2, Darwin SIGCHLD=20 is Linux SIGTSTP, Darwin SIGUSR1=30 is Linux SIGPWR
+_listen	libsystem_kernel	FORWARD	-	no family or struct arguments
+_lseek	libsystem_kernel	FORWARD	-	off_t is 64-bit and SEEK_SET/CUR/END are 0/1/2 on both. Only SEEK_HOLE/SEEK_DATA are swapped (Darwin 3/4, Linux 4/3) and neither is in the demand surface
+_mkdir	libsystem_kernel	FORWARD	-	mode_t is uint16_t on Darwin vs uint32_t on glibc; on x86_64 the caller extends narrow args to 32 bits so the callee's 32-bit read is exact. Permission bits identical. arm64 caveat: Apple's arm64 ABI makes the *callee* responsible for extension -- recheck
+_mprotect	libsystem_kernel	FORWARD	-	PROT_NONE/READ/WRITE/EXEC are 0/1/2/4 on both; MAP_* divergence is already handled by $darwin$mmap
+_munmap	libsystem_kernel	FORWARD	-	no flags; pairs with the existing $darwin$mmap shim
+_open	libsystem_kernel	SHIM	flags	HEADLINE. Darwin O_CREAT=0x0200 O_TRUNC=0x0400 O_EXCL=0x0800 O_NONBLOCK=0x0004 O_APPEND=0x0008 O_CLOEXEC=0x1000000; Linux O_CREAT=0x40 O_TRUNC=0x200 O_EXCL=0x80 O_NONBLOCK=0x800 O_APPEND=0x400 O_CLOEXEC=0x80000. Darwin O_RDWR|O_CREAT|O_TRUNC lands on Linux as O_RDWR|O_TRUNC|O_APPEND with NO O_CREAT
+_pipe	libsystem_kernel	FORWARD	-	int[2] out-param, identical
+_poll	libsystem_kernel	SHIM	signature	nfds_t is unsigned int on Darwin but unsigned long on Linux: the guest passes 32 bits in %esi and the upper half of %rsi is undefined per the SysV ABI, which glibc's poll() reads. One-line truncating wrapper. POLLIN/OUT/ERR/HUP/NVAL values do match
+_posix_spawn	libsystem_kernel	SHIM	struct	CRITICAL. Darwin posix_spawnattr_t / posix_spawn_file_actions_t are 8-byte opaque pointers; glibc's are 336- and 80-byte inline structs the caller must allocate. POSIX_SPAWN_* also diverge above 0x08. The file_actions half is already shimmed to panic (stub_process.c)
+_posix_spawnattr_destroy	libsystem_kernel	SHIM	struct	same 8-vs-336-byte posix_spawnattr_t divergence as posix_spawnattr_init
+_posix_spawnattr_init	libsystem_kernel	SHIM	struct	CRITICAL / memory corruption. The guest allocates sizeof(posix_spawnattr_t) == 8 bytes (Darwin's opaque pointer) and glibc's posix_spawnattr_init memsets 336 bytes over it -- a 328-byte stack smash on the very first call
+_posix_spawnattr_setflags	libsystem_kernel	SHIM	struct	same 8-vs-336-byte posix_spawnattr_t divergence, plus POSIX_SPAWN_* values diverge above 0x08 (Darwin SETEXEC=0x40 / START_SUSPENDED=0x80 vs glibc USEVFORK=0x40 / SETSID=0x80)
+_pread	libsystem_kernel	FORWARD	-	
+_pwrite	libsystem_kernel	FORWARD	-	
+_read	libsystem_kernel	FORWARD	-	
+_readlink	libsystem_kernel	FORWARD	-	
+_removexattr	libsystem_kernel	SHIM	signature	Darwin: removexattr(path,name,int options) -- 3 args; Linux takes 2. options (XATTR_NOFOLLOW) lost
+_rename	libsystem_kernel	FORWARD	-	
+_rmdir	libsystem_kernel	FORWARD	-	
+_setrlimit	libsystem_kernel	SHIM	flags	same RLIMIT_* / RLIM_INFINITY divergence as getrlimit; raising the fd limit silently sets RLIMIT_MEMLOCK instead
+_setsid	libsystem_kernel	FORWARD	-	
+_setxattr	libsystem_kernel	SHIM	signature	Darwin: setxattr(path,name,value,size,uint32_t position,int options). Linux: setxattr(path,name,value,size,int flags) -- Darwin's arg5 'position' is read by glibc as 'flags', so a position of 0 means flags=0 by luck and anything else is garbage; arg6 options is dropped
+_shutdown	libsystem_kernel	FORWARD	-	SHUT_RD/WR/RDWR are 0/1/2 on both
+_socket	libsystem_kernel	SHIM	flags	AF_INET6 is 30 on Darwin vs 10 on Linux (30 == AF_TIPC), AF_ROUTE 17 vs AF_PACKET, AF_SNA 11 vs 22. Sibling red flag: bind/connect/accept/getsockname/getsockopt already have $darwin$ shims that map sa_family, but socket() itself falls through unmapped
+_socketpair	libsystem_kernel	SHIM	flags	same AF_* divergence as socket(); reuse the stub_socket.c sa_family_to_gnu table
+_umask	libsystem_kernel	FORWARD	-	mode_t is uint16_t on Darwin vs uint32_t on glibc; on x86_64 the caller extends narrow args to 32 bits so the callee's 32-bit read is exact. Permission bits identical. arm64 caveat: Apple's arm64 ABI makes the *callee* responsible for extension -- recheck
+_unlink	libsystem_kernel	FORWARD	-	
+_write	libsystem_kernel	FORWARD	-	
+_writev	libsystem_kernel	FORWARD	-	struct iovec is {void*, size_t} on both and IOV_MAX is 1024 on both
+_acos	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_acosf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_asin	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_asinf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_atan	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_atan2	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_atan2f	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_atanf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_ceil	libsystem_m	FORWARD	-	exactly-rounded by IEEE-754; bit-identical on both
+_cos	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_cosf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_cosh	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_exp	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_exp2	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_exp2f	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_expf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_floor	libsystem_m	FORWARD	-	exactly-rounded by IEEE-754; bit-identical on both
+_fmod	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_fmodf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_frexp	libsystem_m	FORWARD	-	pointer/scalar out-params only -- no struct or complex return, so none of the $darwin$__sincosf_stret style stret ABI applies
+_ldexp	libsystem_m	FORWARD	-	pointer/scalar out-params only -- no struct or complex return, so none of the $darwin$__sincosf_stret style stret ABI applies
+_llround	libsystem_m	FORWARD	-	exactly-rounded by IEEE-754; bit-identical on both
+_log	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_log10	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_log10f	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_log2	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_logf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_modf	libsystem_m	FORWARD	-	pointer/scalar out-params only -- no struct or complex return, so none of the $darwin$__sincosf_stret style stret ABI applies
+_modff	libsystem_m	FORWARD	-	pointer/scalar out-params only -- no struct or complex return, so none of the $darwin$__sincosf_stret style stret ABI applies
+_nan	libsystem_m	FORWARD	-	returns a double in xmm0; both parse the tag string into the NaN payload identically
+_pow	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_powf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_rint	libsystem_m	FORWARD	-	exactly-rounded by IEEE-754; bit-identical on both
+_rintf	libsystem_m	FORWARD	-	exactly-rounded by IEEE-754; bit-identical on both
+_round	libsystem_m	FORWARD	-	exactly-rounded by IEEE-754; bit-identical on both
+_sin	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_sinf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_sinh	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_tan	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_tanf	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_tanh	libsystem_m	FORWARD	-	ABI-identical on x86_64 (SSE args/returns); result may differ by <=1 ulp from Apple libm -- matters only for bit-exact replay determinism, not correctness
+_calloc	libsystem_malloc	FORWARD	-	guest and host share one glibc heap; consistent with the existing $darwin$malloc_size shim. Both guarantee 16-byte alignment on x86_64
+_free	libsystem_malloc	FORWARD	-	guest and host share one glibc heap; consistent with the existing $darwin$malloc_size shim. Both guarantee 16-byte alignment on x86_64
+_malloc	libsystem_malloc	FORWARD	-	guest and host share one glibc heap; consistent with the existing $darwin$malloc_size shim. Both guarantee 16-byte alignment on x86_64
+_realloc	libsystem_malloc	FORWARD	-	guest and host share one glibc heap; consistent with the existing $darwin$malloc_size shim. Both guarantee 16-byte alignment on x86_64
+__longjmp	libsystem_platform	SHIM	struct	CRITICAL / memory corruption. Darwin x86_64 jmp_buf is int[_JBLEN] == int[37] == 148 bytes; glibc's struct __jmp_buf_tag is 200 bytes (64-byte __jmp_buf + int + 128-byte sigset). glibc's setjmp writes 52 bytes past the end of the guest's buffer. Mask semantics do agree (setjmp saves it, _setjmp does not). arm64 caveat: the sizes differ again there (Darwin 384 bytes vs glibc 320), so the shim must be per-arch -- _longjmp must read back whatever the _setjmp shim wrote
+__setjmp	libsystem_platform	SHIM	struct	CRITICAL / memory corruption. Darwin x86_64 jmp_buf is int[_JBLEN] == int[37] == 148 bytes; glibc's struct __jmp_buf_tag is 200 bytes (64-byte __jmp_buf + int + 128-byte sigset). glibc's setjmp writes 52 bytes past the end of the guest's buffer. Mask semantics do agree (setjmp saves it, _setjmp does not). arm64 caveat: the sizes differ again there (Darwin 384 bytes vs glibc 320), so the shim must be per-arch
+_longjmp	libsystem_platform	SHIM	struct	CRITICAL / memory corruption. Darwin x86_64 jmp_buf is int[_JBLEN] == int[37] == 148 bytes; glibc's struct __jmp_buf_tag is 200 bytes (64-byte __jmp_buf + int + 128-byte sigset). glibc's setjmp writes 52 bytes past the end of the guest's buffer. Mask semantics do agree (setjmp saves it, _setjmp does not). arm64 caveat: the sizes differ again there (Darwin 384 bytes vs glibc 320), so the shim must be per-arch -- longjmp must read back whatever the setjmp shim wrote
+_setjmp	libsystem_platform	SHIM	struct	CRITICAL / memory corruption. Darwin x86_64 jmp_buf is int[_JBLEN] == int[37] == 148 bytes; glibc's struct __jmp_buf_tag is 200 bytes (64-byte __jmp_buf + int + 128-byte sigset). glibc's setjmp writes 52 bytes past the end of the guest's buffer. Mask semantics do agree (setjmp saves it, _setjmp does not). arm64 caveat: the sizes differ again there (Darwin 384 bytes vs glibc 320), so the shim must be per-arch
+__Unwind_Resume	libunwind	FORWARD	-	NOT missing: libgcc_s.so.1 is a transitive DT_NEEDED of macholo and exports _Unwind_Resume@GCC_3.0, so dlsym(nullptr,..) already binds it -- surface-audit.sh only scanned libc/libm for the glibc lane. Prototype is the shared Level-1 Itanium unwind ABI. It is also unreachable today because $darwin$__cxa_throw panics. IF guest C++/ObjC exceptions are ever enabled this becomes SHIM/semantics: libgcc's unwinder finds FDEs through dl_iterate_phdr and cannot see Mach-O __eh_frame, so a real unwind would abort rather than resume
