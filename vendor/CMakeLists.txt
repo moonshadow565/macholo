@@ -10,6 +10,7 @@
 #   vendor/robin-map     robin-map v1.3.0        188c45569cc2a5dd768077c193830b51d33a5020
 #   vendor/libdispatch   swift-corelibs-libdispatch swift-6.0.2-RELEASE
 #                                                137b6cf3060eae87d9b367c263619c2eca5d3aac
+#   vendor/libxml2       libxml2   v2.12.10     02d577715e1951cf114ca4e9adaf5605156c4f4c
 #
 # The full inventory, with the reason each dep is vendored (or deliberately not),
 # lives in vendor/README.md.
@@ -176,6 +177,28 @@ set_target_properties(dispatch PROPERTIES LINKER_LANGUAGE C)
 # RELAX_CFLAGS made for gnustep-base. Warnings still print.
 target_compile_options(dispatch PRIVATE -Wno-error)
 target_compile_options(BlocksRuntime PRIVATE -Wno-error)
+
+# ---------------------------------------------------------------------------
+# libxml2 (CMake-native)
+# ---------------------------------------------------------------------------
+# Pinned to v2.12.10 == Fedora 44's libxml2-2.12.10-6.fc44, deliberately: the only
+# gnustep-base patch in this tree (Source/Additions/GSXML.m, the xmlEntity.checked
+# removal) is a >= 2.12 fixup, and a newer libxml2 would be behaviour drift on the
+# plist/XML path for no gain.
+#
+# Only four defaults are changed, all of them things nothing here consumes; every
+# other LIBXML2_WITH_* keeps upstream's default so the parser behaves as the RPM
+# does.  PROGRAMS/TESTS are build-time only; LZMA and ZLIB are the two options that
+# would each add a DT_NEEDED (liblzma, libz) for compressed-input support that
+# neither GSXML nor NSXMLParser ever asks for.  gnustep-base still links -lz on its
+# own account.
+set(LIBXML2_WITH_PYTHON   OFF CACHE BOOL "libxml2: Python bindings" FORCE)
+set(LIBXML2_WITH_TESTS    OFF CACHE BOOL "libxml2: test suite" FORCE)
+set(LIBXML2_WITH_PROGRAMS OFF CACHE BOOL "libxml2: xmllint/xmlcatalog" FORCE)
+set(LIBXML2_WITH_LZMA     OFF CACHE BOOL "libxml2: liblzma input" FORCE)
+set(LIBXML2_WITH_ZLIB     OFF CACHE BOOL "libxml2: libz input" FORCE)
+
+add_subdirectory(libxml2 EXCLUDE_FROM_ALL)
 
 # ---------------------------------------------------------------------------
 # gnustep-base (hand-written CMake over the vendored sources)

@@ -39,9 +39,6 @@ if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "
         "See docs/GNUSTEP-BUILD.md.")
 endif()
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSBASE_XML REQUIRED IMPORTED_TARGET libxml-2.0)
-
 set(GSBASE_SRC   "${CMAKE_CURRENT_SOURCE_DIR}/../gnustep-base")
 set(GSBASE_CFG   "${CMAKE_CURRENT_SOURCE_DIR}/../gnustep-base-config/x86_64-linux-gnu")
 
@@ -381,7 +378,7 @@ target_include_directories(gnustep-base-objs PRIVATE
     "${GSBASE_SRC}/Source/Additions"
     "${GSBASE_SRC}/Source/unix"
 )
-target_link_libraries(gnustep-base-objs PRIVATE objc dispatch PkgConfig::GSBASE_XML)
+target_link_libraries(gnustep-base-objs PRIVATE objc dispatch LibXml2::LibXml2)
 
 add_library(gnustep-base SHARED $<TARGET_OBJECTS:gnustep-base-objs>)
 set_target_properties(gnustep-base PROPERTIES
@@ -393,7 +390,7 @@ set_target_properties(gnustep-base PROPERTIES
 # Transcribed from the reference link line (order-insensitive for a shared lib).
 target_link_libraries(gnustep-base PRIVATE
     objc
-    PkgConfig::GSBASE_XML
+    LibXml2::LibXml2
     dispatch
     -lpthread -lffi -lz -lrt -ldl -lm
 )
