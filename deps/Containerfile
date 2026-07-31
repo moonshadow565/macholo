@@ -21,7 +21,7 @@
 # selector_table.cc) and it is what implements Objective-C <-> C++ exception
 # interop, so its C++ standard library must agree with the consumer's.
 # macholo/CMakeLists.txt builds the host app with `-stdlib=libc++` and links
-# `-lc++abi -lsupc++`, and the old Ubuntu tree was likewise built with libc++,
+# `-lc++abi`, and the old Ubuntu tree was likewise built with libc++,
 # so libobjc2 is built here with **libc++ / libc++abi** as well.
 #
 # Both -DCMAKE_CXX_FLAGS and -DCMAKE_OBJCXX_FLAGS must carry `-stdlib=libc++`.

@@ -66,10 +66,14 @@ linked libicu*.so.70) and `build-gnustep.sh` (apt-based, implicit system state).
 - Configure with `CC/CXX/OBJC/ASM=clang` (ASM too — `stub_objc.S` uses clang-only flags)
   and `-DGNUSTEP_DIR=$REPO/deps/sysroot/usr/GNUstep`.
 - Runtime packages: `sudo dnf install $(cat deps/host-packages.txt)`.
-- `-lsupc++` in the root CMakeLists needs `libstdc++-static` on Fedora 44 (the 64-bit
-  `libsupc++.a` lives there; gcc-c++ only ships the 32-bit one). Known cleanup: linking
-  both libc++abi *and* libsupc++ means two competing Itanium-ABI runtimes — it works
-  because libc++abi wins, but `-lsupc++` should eventually just be dropped.
+- The root CMakeLists links `-lc++abi` only. It used to also carry `-lsupc++` (inherited
+  from the old build script), which meant two competing Itanium-ABI runtimes in one link —
+  harmless only because libc++abi won symbol resolution — and dragged in a
+  `libstdc++-static` build dependency for the 64-bit `libsupc++.a`. **Dropped 2026-07**:
+  the link is clean, and both the 14.8 and 16.3 replays still reach `GAMESTATE_GAMELOOP`,
+  which exercises the ObjC↔C++ exception interop end to end. `libstdc++-static` is no
+  longer needed to build macholo. `libstdc++.so.6` still shows up in `ldd`, but only
+  transitively via libicu — nothing in the tree links it directly.
 - Known duplicate-symbol wart, inherited from the old tree: both libobjc.so and
   libBlocksRuntime.so (via libdispatch) export `_Block_copy`; first in scope wins and the
   smoke test passes. First suspect if block-related weirdness ever appears.

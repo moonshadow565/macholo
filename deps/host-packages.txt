@@ -13,8 +13,6 @@
 #
 # Compile-time only, so NOT listed below:
 #   clang lld cmake libcxx-devel libcxxabi-devel
-#   gcc-c++   (provides libsupc++.a, needed for the -lsupc++ in
-#              macholo's CMAKE_EXE_LINKER_FLAGS)
 
 cyrus-sasl-lib
 glibc

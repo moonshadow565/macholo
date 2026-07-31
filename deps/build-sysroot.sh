@@ -85,8 +85,6 @@ echo "==> deriving $PKGLIST"
     echo "#"
     echo "# Compile-time only, so NOT listed below:"
     echo "#   clang lld cmake libcxx-devel libcxxabi-devel"
-    echo "#   gcc-c++   (provides libsupc++.a, needed for the -lsupc++ in"
-    echo "#              macholo's CMAKE_EXE_LINKER_FLAGS)"
     echo
     cat "$HERE/.pkgs.raw"
 } > "$PKGLIST"

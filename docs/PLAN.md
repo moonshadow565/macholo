@@ -68,8 +68,7 @@ direct-mapped gl* functions on 16.3).
       surface, diff against implemented stubs (`docs/surface-*/` are the target output).
 - [x] Podman dep build (`deps/` — see [GNUSTEP-BUILD.md](GNUSTEP-BUILD.md) for the
       rationale and ABI landmines). Host build works on Fedora 44:
-      `CC/CXX/OBJC/ASM=clang cmake -B build -DGNUSTEP_DIR=$PWD/deps/sysroot/usr/GNUstep`
-      (+ `libstdc++-static` for `-lsupc++`).
+      `CC/CXX/OBJC/ASM=clang cmake -B build -DGNUSTEP_DIR=$PWD/deps/sysroot/usr/GNUstep`.
 
 ### Phase 1 — regression baseline on 14.8 ✅ (2026-07-30)
 Thin x86_64, no `__DATA_CONST`, GL + Cg renderer, only Cg.framework hard-linked
