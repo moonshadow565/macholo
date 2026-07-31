@@ -45,6 +45,7 @@ void NSBeep(void) {
 @implementation NSApplication {
   id<NSApplicationDelegate> _delegate;
   NSEvent *_current_event;
+  id _mainMenu;
 }
 
 + (NSApplication *)sharedApplication {
@@ -62,6 +63,23 @@ void NSBeep(void) {
   [super init];
   _current_event = [NSEvent alloc];
   return self;
+}
+
+// The menu bar is meaningless under Xvfb, but the game queries [NSApp mainMenu] after
+// loading its nib and messages the result; store/return it (nil until set) so the calls
+// resolve instead of hitting doesNotRecognizeSelector.
+- (id)mainMenu {
+  return _mainMenu;
+}
+- (void)setMainMenu:(id)menu {
+  if (menu == _mainMenu) return;
+  [_mainMenu release];
+  _mainMenu = [menu retain];
+}
+
+// Cocoa's own event machinery flips this after dispatching an event to request a menu/UI
+// update pass; there is nothing to update here, so accept and ignore it.
+- (void)setWindowsNeedUpdate:(BOOL)needUpdate {
 }
 
 - (id)delegate {
@@ -122,11 +140,17 @@ void NSBeep(void) {
                          untilDate:(NSDate *)untilDate
                             inMode:(NSString *)mode
                            dequeue:(BOOL)dequeue {
-  assert_that(dequeue == YES);
-  assert_that(mask == NSEventMaskAny);
-  assert_that(untilDate == NULL || [untilDate timeIntervalSinceNow] <= 0.0);
-
   SDL_Event sdl_event = {};
+
+  // dequeue:NO is a peek -- the game inspects the head of the queue without consuming it
+  // (WC3 does this while pumping its run loop). Report the pending event, if any, but do
+  // not remove it or run consume-time bookkeeping.
+  if (!dequeue) {
+    if (SDL_PeepEvents(&sdl_event, 1, SDL_PEEKEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT) <= 0) return nil;
+    [_current_event initFromSDL:(void *)&sdl_event];
+    return _current_event;
+  }
+
   if (!SDL_PollEvent(&sdl_event)) return nil;
 
   switch (sdl_event.type) {
