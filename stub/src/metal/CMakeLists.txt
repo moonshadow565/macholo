@@ -6,6 +6,10 @@ add_library(stub-metal OBJECT
     MACHOLONullObject.m
     MTLDescriptors.h
     MTLDescriptors.m
+    MACHOLONullResources.h
+    MACHOLONullResources.m
+    MACHOLONullCommand.h
+    MACHOLONullCommand.m
     MetalStubs.c
 )
 target_include_directories(stub-metal PRIVATE ${STUB_SRC_DIR})
