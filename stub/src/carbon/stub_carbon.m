@@ -74,14 +74,9 @@ void *TISGetInputSourceProperty(TISInputSourceRef inputSource, CFStringRef prope
   // CFArrayGetCount. Hand back a one-element {"en"} CFArray (GNUstep bridges CFString to
   // NSString, so -length works). Other properties are genuinely unused; keep them NULL.
   if (propertyKey == kTISPropertyInputSourceLanguages) {
-    // Shadowed like minicf.h's DARWIN_SHADOW (can't include it here: this file's
-    // opaque CF typedefs clash with the real CF headers). When DARWIN_SHADOW goes
-    // plain after the corebase unlink, drop these asm labels with it.
-    extern void *CFStringCreateWithCString(const void *alloc, const char *cStr, unsigned encoding)
-        __asm__("$darwin$CFStringCreateWithCString");
-    extern void *CFArrayCreate(const void *alloc, const void **values, long numValues, const void *callBacks)
-        __asm__("$darwin$CFArrayCreate");
-    extern const char kCFTypeArrayCallBacks __asm__("$darwin$kCFTypeArrayCallBacks");
+    extern void *CFStringCreateWithCString(const void *alloc, const char *cStr, unsigned encoding);
+    extern void *CFArrayCreate(const void *alloc, const void **values, long numValues, const void *callBacks);
+    extern const char kCFTypeArrayCallBacks;
     const void *en = CFStringCreateWithCString(NULL, "en", 0x08000100u /* kCFStringEncodingUTF8 */);
     const void *values[1] = {en};
     return CFArrayCreate(NULL, values, 1, &kCFTypeArrayCallBacks);

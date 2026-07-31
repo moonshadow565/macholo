@@ -37,8 +37,11 @@
 #include "CoreFoundation/CFUUID.h"
 #include "CoreFoundation/CFURL.h"
 
-// drop this (expand to nothing) when gnustep-corebase is unlinked
-#define DARWIN_SHADOW(name) __asm__("$darwin$" #name)
+// corebase is unlinked: mini-CF owns the plain CF names and resolves through the
+// flat namespace like every other stub module. The $darwin$ scaffolding is gone;
+// the macro remains as documentation of the seam (and in case another CF provider
+// ever enters the link again).
+#define DARWIN_SHADOW(name)
 
 // --- allocator / base (CFBase.m) -------------------------------------------------
 extern CFAllocatorRef kCFAllocatorDefault DARWIN_SHADOW(kCFAllocatorDefault);
