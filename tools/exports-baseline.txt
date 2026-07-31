@@ -2,6 +2,11 @@ $darwin$CFAutorelease
 $darwin$CFMakeCollectable
 $darwin$CFRelease
 $darwin$CFRetain
+$darwin$CFStringCompare
+$darwin$CFStringCreateWithBytes
+$darwin$CFStringCreateWithCString
+$darwin$CFStringGetCString
+$darwin$CFStringGetCStringPtr
 $darwin$CFURLCreateFromFileSystemRepresentation
 $darwin$CFURLCreateWithFileSystemPath
 $darwin$CFURLCreateWithString

@@ -3,6 +3,7 @@ add_library(stub-corefoundation OBJECT
     CFBase.m
     CFBundle.m
     CFNotificationCenter.c
+    CFString.m
     CFURL.m
     minicf.h
 )

@@ -27,6 +27,7 @@
 // games pass.
 
 #include "CoreFoundation/CFBase.h"
+#include "CoreFoundation/CFString.h"
 #include "CoreFoundation/CFURL.h"
 
 // drop this (expand to nothing) when gnustep-corebase is unlinked
@@ -38,6 +39,19 @@ CFTypeRef CFRetain(CFTypeRef cf) DARWIN_SHADOW(CFRetain);
 void CFRelease(CFTypeRef cf) DARWIN_SHADOW(CFRelease);
 CFTypeRef CFAutorelease(CFTypeRef cf) DARWIN_SHADOW(CFAutorelease);
 CFTypeRef CFMakeCollectable(CFTypeRef cf) DARWIN_SHADOW(CFMakeCollectable);
+
+// --- CFString (CFString.m) -------------------------------------------------------
+CFStringRef CFStringCreateWithBytes(CFAllocatorRef alloc, const UInt8 *bytes, CFIndex numBytes,
+                                    CFStringEncoding encoding, Boolean isExternalRepresentation)
+    DARWIN_SHADOW(CFStringCreateWithBytes);
+CFStringRef CFStringCreateWithCString(CFAllocatorRef alloc, const char *cStr, CFStringEncoding encoding)
+    DARWIN_SHADOW(CFStringCreateWithCString);
+CFComparisonResult CFStringCompare(CFStringRef theString1, CFStringRef theString2,
+                                   CFStringCompareFlags compareOptions) DARWIN_SHADOW(CFStringCompare);
+Boolean CFStringGetCString(CFStringRef theString, char *buffer, CFIndex bufferSize, CFStringEncoding encoding)
+    DARWIN_SHADOW(CFStringGetCString);
+const char *CFStringGetCStringPtr(CFStringRef theString, CFStringEncoding encoding)
+    DARWIN_SHADOW(CFStringGetCStringPtr);
 
 // --- CFURL (CFURL.m) --------------------------------------------------------------
 CFURLRef CFURLCreateWithFileSystemPath(CFAllocatorRef allocator, CFStringRef filePath, CFURLPathStyle pathStyle,
