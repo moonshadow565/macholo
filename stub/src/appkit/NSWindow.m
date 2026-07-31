@@ -317,7 +317,8 @@ static NSWindow *_key_window = Nil;
 }
 
 - (void)orderOut:(id)sender {
-  panic("Unimplemented");
+  // 16.15 takes the renderer-init failure path through here on its way to the error alert.
+  if (_sdl_window) SDL_HideWindow(_sdl_window);
 }
 - (void)orderBack:(id)sender {
   panic("Unimplemented");

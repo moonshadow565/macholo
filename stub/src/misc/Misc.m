@@ -92,7 +92,8 @@ void CFBundleGetMainBundle() {
   panic("CFBundleGetMainBundle");
 }
 
-void MTLCreateSystemDefaultDevice() {
-    // NOTE: should only be used by metal, dont' care
-    panic("MTLCreateSystemDefaultDevice");
+void *MTLCreateSystemDefaultDevice(void) {
+    // No Metal. Returning nil is what a real Mac with no supported GPU does, and it is what
+    // lets the caller take its own "failed to create device" path instead of dying here.
+    return NULL;
 }

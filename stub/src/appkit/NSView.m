@@ -92,6 +92,11 @@
   return _inputContext;
 }
 
+- (void)addTrackingArea:(id)trackingArea {
+}
+- (void)removeTrackingArea:(id)trackingArea {
+}
+
 - (void)lockFocus {
   panic("Unimplemented!");
 }

@@ -28,6 +28,11 @@
 
 - (NSTextInputContext *)inputContext;
 
+// NSTrackingArea itself is not implemented (16.15 leaves the class ref unresolved, so the
+// game hands us nil); mouse enter/exit/move tracking is unconditional in NSEvent anyway.
+- (void)addTrackingArea:(id)trackingArea;
+- (void)removeTrackingArea:(id)trackingArea;
+
 - (void)lockFocus;
 - (void)unlockFocus;
 

@@ -7,7 +7,8 @@
 }
 
 + (NSImage *)imageNamed:(NSImageName)name {
-  panic("Unimplemented");
+  // We ship no named image assets; real AppKit also answers nil for an unknown name.
+  return nil;
 }
 
 - (id)copyWithZone:(NSZone *)zone {
