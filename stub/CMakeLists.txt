@@ -2,10 +2,20 @@ project(LANGUAGES C ASM OBJC)
 
 add_subdirectory(gnustep)
 
-find_package(SDL2 REQUIRED)
+# SDL2 comes from vendor/SDL2 by default (see vendor/README.md).  The old
+# find_package path is kept behind an option rather than deleted: it is the escape
+# hatch for a host that would rather use its own SDL2, and on Fedora it is not even
+# SDL2 -- the distro package is sdl2-compat, an SDL2 API shim on top of SDL3, so
+# "system SDL2" and "vendored SDL2" are genuinely different code underneath.
+option(MACHOLO_SYSTEM_SDL "Link the host's SDL2 instead of vendor/SDL2" OFF)
 add_library(sdl2 INTERFACE)
-target_include_directories(sdl2 INTERFACE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(sdl2 INTERFACE ${SDL2_LIBRARIES})
+if(MACHOLO_SYSTEM_SDL)
+    find_package(SDL2 REQUIRED)
+    target_include_directories(sdl2 INTERFACE ${SDL2_INCLUDE_DIRS})
+    target_link_libraries(sdl2 INTERFACE ${SDL2_LIBRARIES})
+else()
+    target_link_libraries(sdl2 INTERFACE SDL2::SDL2)
+endif()
 
 # Shared by every stub module OBJECT lib. PIC is not implied for OBJECT libs the way
 # it was when these sources lived directly in the SHARED target, so ask for it here.

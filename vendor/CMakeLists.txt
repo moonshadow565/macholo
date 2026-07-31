@@ -12,6 +12,8 @@
 #                                                137b6cf3060eae87d9b367c263619c2eca5d3aac
 #   vendor/libxml2       libxml2   v2.12.10     02d577715e1951cf114ca4e9adaf5605156c4f4c
 #   vendor/libffi        libffi    v3.5.2       e2eda0cf72a0598b44278cc91860ea402273fa29
+#   vendor/SDL2          SDL       release-2.32.10
+#                                                5d249570393f7a37e037abf22cd6012a4cc56a71
 #
 # The full inventory, with the reason each dep is vendored (or deliberately not),
 # lives in vendor/README.md.
@@ -210,6 +212,28 @@ add_subdirectory(libffi-cmake)
 # gnustep-base (hand-written CMake over the vendored sources)
 # ---------------------------------------------------------------------------
 add_subdirectory(gnustep-base-cmake)
+
+# ---------------------------------------------------------------------------
+# SDL2 (CMake-native)
+# ---------------------------------------------------------------------------
+# stub/ implements AppKit on SDL2; this is the window/input/GL-context layer the
+# game actually runs on, so it is the one vendored dep that is not a GNUstep
+# dependency at all.  Opt out with -DMACHOLO_SYSTEM_SDL=ON (see stub/CMakeLists.txt).
+#
+# Pinned to release-2.32.10, the newest release of the 2.32 line.  Note that
+# Fedora 44 has no SDL2 package at all: `dnf` gives you sdl2-compat 2.32.70, which
+# is an SDL2 API shim *on top of SDL3*.  So there is no system SDL2 release to
+# match exactly, and vendoring here swaps a two-layer shim for the real thing.
+#
+# Build only what the stub links: the shared library.  SDL2's own test suite,
+# static library and install rules are all off.
+set(SDL_SHARED ON CACHE BOOL "SDL2: build libSDL2.so" FORCE)
+set(SDL_STATIC OFF CACHE BOOL "SDL2: build libSDL2.a" FORCE)
+set(SDL_TEST OFF CACHE BOOL "SDL2: build the test harness library" FORCE)
+set(SDL2_DISABLE_INSTALL ON CACHE BOOL "SDL2: install rules" FORCE)
+set(SDL2_DISABLE_UNINSTALL ON CACHE BOOL "SDL2: uninstall target" FORCE)
+
+add_subdirectory(SDL2 EXCLUDE_FROM_ALL)
 
 # ---------------------------------------------------------------------------
 # CoreFoundation headers for mini-CF (headers only, no corebase code)
