@@ -21,7 +21,7 @@ PID=$!
 i=0
 while [ $i -lt 120 ]; do
     if grep -q GAMESTATE_GAMELOOP "$LOG"; then
-        kill "$PID" 2>/dev/null || true
+        kill -9 "$PID" 2>/dev/null || true
         echo "gate $V: PASS (GAMELOOP after ~$((i * 5))s)"
         exit 0
     fi
@@ -29,7 +29,7 @@ while [ $i -lt 120 ]; do
     sleep 5
     i=$((i + 1))
 done
-kill "$PID" 2>/dev/null || true
+kill -9 "$PID" 2>/dev/null || true
 echo "gate $V: FAIL (no GAMELOOP within 600s)"
 tail -15 "$LOG"
 exit 1
