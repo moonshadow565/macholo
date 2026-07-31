@@ -51,6 +51,7 @@ add_library(stub SHARED
     src/coregraphics/CG.m
     
     # Misc IOKit and CoreSecurity
+    src/misc/CFURL.m
     src/misc/Misc.m
 
     # libSystem
@@ -60,6 +61,7 @@ add_library(stub SHARED
     src/system/stub_dispatch.c
     src/system/stub_fs.c
     src/system/stub_io.c
+    src/system/stub_iokit.c
     src/system/stub_kernel.c
     src/system/stub_kernel_kqueue.c
     src/system/stub_mach_vm.c

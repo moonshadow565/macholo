@@ -514,3 +514,58 @@ int $darwin$_ZNSt3__118condition_variable4waitERNS_11unique_lockINS_5mutexEEE($d
 int $darwin$_ZNSt3__118condition_variableD2Ev($darwin$pthread_cond_t *cond) { return $darwin$pthread_cond_destroy(cond); }
 
 int $darwin$_ZNSt3__118condition_variableD1Ev($darwin$pthread_cond_t *cond) { return $darwin$pthread_cond_destroy(cond); }
+
+// ---------------------------------------------------------------------------
+// Darwin's _np pthread extensions.
+// ---------------------------------------------------------------------------
+
+// Recorded by the constructor that sets up darwin TSD, which runs on the main thread.
+static pthread_t darwin_main_thread;
+
+__attribute__((constructor)) static void darwin_main_thread_init(void) {
+  darwin_main_thread = pthread_self();
+}
+
+int $darwin$pthread_main_np(void) {
+  return pthread_equal(pthread_self(), darwin_main_thread) ? 1 : 0;
+}
+
+void $darwin$pthread_yield_np(void) {
+  sched_yield();
+}
+
+void *$darwin$pthread_get_stackaddr_np(pthread_t thread) {
+  // Darwin reports the stack's high address (stacks grow down); pthread_attr_getstack
+  // reports the low one, so add the size back.
+  pthread_attr_t attr;
+  void *addr = NULL;
+  size_t size = 0;
+  if (pthread_getattr_np(thread, &attr) != 0) return NULL;
+  if (pthread_attr_getstack(&attr, &addr, &size) != 0) addr = NULL;
+  pthread_attr_destroy(&attr);
+  return addr ? (char *)addr + size : NULL;
+}
+
+size_t $darwin$pthread_get_stacksize_np(pthread_t thread) {
+  pthread_attr_t attr;
+  void *addr = NULL;
+  size_t size = 0;
+  if (pthread_getattr_np(thread, &attr) != 0) return 0;
+  if (pthread_attr_getstack(&attr, &addr, &size) != 0) size = 0;
+  pthread_attr_destroy(&attr);
+  return size;
+}
+
+pthread_t $darwin$pthread_from_mach_thread_np(uint32_t thread_port) {
+  // mach_thread_self() hands out the pthread_t itself as the port name (stub_kernel.c),
+  // so the mapping back is the identity -- truncated to 32 bits there, which is why this
+  // can only recognise the calling thread.
+  return (uint32_t)(uintptr_t)pthread_self() == thread_port ? pthread_self() : (pthread_t)0;
+}
+
+int $darwin$pthread_create_suspended_np(pthread_t *thread, $darwin$pthread_attr_t *attr, void *(*start)(void *),
+                                        void *arg) {
+  // There is no portable "create suspended"; the callers only use it to set scheduling
+  // parameters before the thread runs, which we do not model anyway.
+  return $darwin$pthread_create(thread, attr, start, arg);
+}

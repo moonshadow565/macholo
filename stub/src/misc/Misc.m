@@ -1,9 +1,14 @@
 #include <common.h>
+#include <Foundation/NSArray.h>
+#include <Foundation/NSBundle.h>
 #include <Foundation/NSString.h>
+#include <Foundation/NSURL.h>
 #include "CoreFoundation/CFArray.h"
 #include "CoreFoundation/CFBase.h"
 #include "CoreFoundation/CFDictionary.h"
 #include "CoreFoundation/CFString.h"
+#include "CoreFoundation/CFBundle.h"
+#include "CoreFoundation/CFURL.h"
 
 void IOHIDGetParameter() {
   // NOTE: used for mouse accell, we can safely stub it?
@@ -77,19 +82,40 @@ CFDictionaryRef SCDynamicStoreCopyProxies() {
 // DATA:
 // NSImageNameStopProgressFreestandingTemplate
 
-void CFBundleCopyPreferredLocalizationsFromArray() {
-  // FIXME: CFBundleCopyPreferredLocalizationsFromArray
-  panic("CFBundleCopyPreferredLocalizationsFromArray");
+// CFBundle gaps. gnustep-corebase implements most of the CFBundle API (including
+// CFBundleGetMainBundle/CFBundleGetIdentifier/CFBundleCopyBundleURL), so those must NOT
+// be shadowed here -- the game passes the CFBundleRef it gets back into corebase's own
+// functions, and an NSBundle in its place walks straight into garbage. Only the few
+// entry points corebase is missing live here.
+CFArrayRef CFBundleCopyPreferredLocalizationsFromArray(CFArrayRef locArray) {
+  // "Which of these localizations should I use?" NULL means "no preference" and the
+  // caller falls back to its own default language.
+  return NULL;
 }
 
-void CFBundleGetIdentifier() {
-  // FIXME: CFBundleGetIdentifier
-  panic("CFBundleGetIdentifier");
+CFArrayRef CFBundleGetAllBundles(void) {
+  return NULL;
 }
 
-void CFBundleGetMainBundle() {
-  // FIXME: CFBundleGetMainBundle
-  panic("CFBundleGetMainBundle");
+CFDictionaryRef CFBundleCopyInfoDictionaryForURL(CFURLRef url) {
+  if (url == NULL) return NULL;
+  CFBundleRef bundle = CFBundleCreate(NULL, url);
+  if (bundle == NULL) return NULL;
+  CFDictionaryRef info = CFBundleGetInfoDictionary(bundle);
+  if (info != NULL) CFRetain(info);
+  CFRelease(bundle);
+  return info;
+}
+
+CFURLRef CFBundleCopySharedSupportURL(CFBundleRef bundle) {
+  // Contents/SharedSupport is not part of this game's layout (it keeps everything under
+  // Resources), and the caller treats a missing directory as "nothing to load".
+  return NULL;
+}
+
+uint32_t CFBundleGetVersionNumber(CFBundleRef bundle) {
+  // The packed 'vers' number; the game only compares it against zero.
+  return 0;
 }
 
 void *MTLCreateSystemDefaultDevice(void) {

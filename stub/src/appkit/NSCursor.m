@@ -56,4 +56,29 @@ static NSCursor* _currentCursor = NULL;
 + (NSCursor *)currentCursor {
   return _currentCursor;
 }
+
+// One shared instance per system cursor. They must be distinct objects (the game
+// compares them) but there is no distinct appearance to give them: SDL is what
+// actually draws the pointer, and the game sets its own image for the in-game one.
++ (NSCursor *)_sharedSystemCursor:(NSCursor **)slot {
+  if (*slot == Nil) *slot = [[NSCursor alloc] init];
+  return *slot;
+}
+
+#define SYSTEM_CURSOR($name)                        \
+  +(NSCursor *)$name {                              \
+    static NSCursor *instance = Nil;                \
+    return [NSCursor _sharedSystemCursor:&instance]; \
+  }
+
+SYSTEM_CURSOR(arrowCursor)
+SYSTEM_CURSOR(IBeamCursor)
+SYSTEM_CURSOR(pointingHandCursor)
+SYSTEM_CURSOR(closedHandCursor)
+SYSTEM_CURSOR(openHandCursor)
+SYSTEM_CURSOR(crosshairCursor)
+SYSTEM_CURSOR(resizeLeftRightCursor)
+SYSTEM_CURSOR(resizeUpDownCursor)
+SYSTEM_CURSOR(operationNotAllowedCursor)
+#undef SYSTEM_CURSOR
 @end

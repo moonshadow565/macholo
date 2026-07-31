@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -58,7 +59,10 @@ int backtrace_from_fp(void *startfp, void **array, int size) {
 #define $darwin$KERN_PROC 14
 #define $darwin$KERN_PROC_PID 1
 #define $darwin$HW_NCPU 3
+#define $darwin$HW_PAGESIZE 7
 #define $darwin$HW_MEMSIZE 24
+#define $darwin$KERN_MAXFILESPERPROC 21
+#define $darwin$KERN_OSVERSION 65
 
 int $darwin$sysctl(int *name, unsigned namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen) {
   if (!name || namelen < 2) {
@@ -69,6 +73,12 @@ int $darwin$sysctl(int *name, unsigned namelen, void *oldp, size_t *oldlenp, voi
     return $darwin$sysctlbyname("hw.ncpu", oldp, oldlenp, newp, newlen);
   if (name[0] == $darwin$CTL_HW && name[1] == $darwin$HW_MEMSIZE)
     return $darwin$sysctlbyname("hw.memsize", oldp, oldlenp, newp, newlen);
+  if (name[0] == $darwin$CTL_HW && name[1] == $darwin$HW_PAGESIZE)
+    return $darwin$sysctlbyname("hw.pagesize", oldp, oldlenp, newp, newlen);
+  if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_MAXFILESPERPROC)
+    return $darwin$sysctlbyname("kern.maxfilesperproc", oldp, oldlenp, newp, newlen);
+  if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_OSVERSION)
+    return $darwin$sysctlbyname("kern.osversion", oldp, oldlenp, newp, newlen);
   // KERN_PROC/KERN_PROC_PID is the "am I being debugged?" probe (it reads P_TRACED out
   // of the returned kinfo_proc). Report a zeroed record: not traced.
   if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_PROC) {
@@ -118,4 +128,59 @@ int32_t $darwin$NSVersionOfRunTimeLibrary(char const *libraryName) {
 
 void $darwin$DebugStr(unsigned char const *str) {
   if (str) fprintf(stderr, "[DebugStr] %.*s\n", (int)str[0], (char const *)str + 1);
+}
+
+// ---------------------------------------------------------------------------
+// OSAtomic. The compiler builtins are the same instructions Apple's library uses,
+// and "Barrier" is a full sequentially-consistent fence.
+// ---------------------------------------------------------------------------
+
+bool $darwin$OSAtomicCompareAndSwap32Barrier(int32_t oldValue, int32_t newValue, volatile int32_t *theValue) {
+  return __atomic_compare_exchange_n(theValue, &oldValue, newValue, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+bool $darwin$OSAtomicCompareAndSwap64Barrier(int64_t oldValue, int64_t newValue, volatile int64_t *theValue) {
+  return __atomic_compare_exchange_n(theValue, &oldValue, newValue, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+void $darwin$OSMemoryBarrier(void) {
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
+}
+
+// Thread-local destructors. src/tlv.cpp hands out TLV blocks that live for the whole
+// process, so there is nothing to run at thread exit.
+void $darwin$_tlv_atexit(void (*func)(void *), void *obj) {
+}
+
+// ---------------------------------------------------------------------------
+// The legacy NSObjectFileImage/NSModule bundle-loading API. Nothing here can load a
+// Mach-O bundle at runtime, so image creation fails and the game keeps whatever it
+// already has statically linked.
+// ---------------------------------------------------------------------------
+
+enum { NSObjectFileImageFailure = 1 };
+
+int $darwin$NSCreateObjectFileImageFromMemory(void *address, size_t size, void **objectFileImage) {
+  if (objectFileImage) *objectFileImage = NULL;
+  return NSObjectFileImageFailure;
+}
+
+bool $darwin$NSDestroyObjectFileImage(void *objectFileImage) {
+  return false;
+}
+
+void *$darwin$NSLinkModule(void *objectFileImage, const char *moduleName, uint32_t options) {
+  return NULL;
+}
+
+bool $darwin$NSUnLinkModule(void *module, uint32_t options) {
+  return false;
+}
+
+void *$darwin$NSLookupSymbolInModule(void *module, const char *symbolName) {
+  return NULL;
+}
+
+void *$darwin$NSAddressOfSymbol(void *symbol) {
+  return NULL;
 }
