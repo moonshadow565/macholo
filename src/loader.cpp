@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 1
 #include "loader.hpp"
 
 #include <fcntl.h>
@@ -49,29 +50,61 @@ namespace {
     return prot;
   }
 
-  // Map every segment at vmaddr+slide from its own file offset, with the zerofill tail
-  // (vmsize > filesize, i.e. __bss/__common) coming from anonymous pages -- the way dyld
-  // does it. Everything is mapped writable on top of its real protections because the
+  // True if every segment sits page-aligned inside [vm_base, vm_base+vm_size) with its
+  // file part inside the slice -- i.e. the layout the mapping code below assumes.
+  bool layout_is_ordinary(macho::Slice const& sl, macho::Object const& object, uint64_t vm_base, size_t vm_size) {
+    auto const page_mask = (uint64_t)page_size() - 1;
+    for (auto const& seg : object.segments) {
+      if (is_pagezero(seg)) continue;
+      if (seg.vmaddr < vm_base) return false;
+      if (seg.vmaddr + seg.vmsize > vm_base + vm_size) return false;
+      if (seg.filesize > seg.vmsize) return false;
+      if (seg.vmaddr & page_mask) return false;
+      if (seg.filesize && (seg.fileoff & page_mask)) return false;
+      if (seg.fileoff + seg.filesize > sl.size) return false;
+    }
+    return true;
+  }
+
+  // Build the image's backing store: an anonymous shared file laid out by *VM address*,
+  // not by file offset. Offset (vmaddr - vm_base) in the memfd is the byte living at
+  // vmaddr, segment file data copied in and zerofill left zero.
+  //
+  // Laying it out this way is what makes mach_vm_remap able to hand out a genuine
+  // second view of any part of the image (WC3's packer decrypts __TEXT through such an
+  // alias, and asks for the whole image in one go, spanning several segments). A memfd
+  // laid out by file offset could not serve that: __LINKEDIT's file offset and its VM
+  // offset differ once an earlier segment has a zerofill tail.
+  //
+  // Returns -1 if the file cannot be built.
+  int make_backing(void const* file, macho::Slice const& sl, macho::Object const& object, uint64_t vm_base,
+                   size_t vm_size) {
+    int const fd = ::memfd_create("macholo-image", MFD_CLOEXEC);
+    if (fd == -1) return -1;
+    if (::ftruncate(fd, (off_t)vm_size) != 0) {
+      ::close(fd);
+      return -1;
+    }
+    for (auto const& seg : object.segments) {
+      if (is_pagezero(seg) || seg.filesize == 0) continue;
+      auto const src = (char const*)file + sl.offset + seg.fileoff;
+      if (::pwrite(fd, src, seg.filesize, (off_t)(seg.vmaddr - vm_base)) != (ssize_t)seg.filesize) {
+        ::close(fd);
+        return -1;
+      }
+    }
+    return fd;
+  }
+
+  // Map every segment at vmaddr+slide from the backing file built above -- one mapping
+  // per segment, covering the zerofill tail (__bss/__common) too, which is already zero
+  // there. Everything is mapped writable on top of its real protections because the
   // loader still has fixups to write (rebase, bind, objc metadata, TLV descriptors);
   // Image::protect() drops them to final_prot() once those are done.
   //
-  // Returns the load address, or nullptr if the layout is anything unusual -- the caller
-  // then falls back to the previous whole-slice overlay rather than leaving a half-built
-  // image behind.
-  void* map_segments(int fd, macho::Slice const& sl, macho::Object const& object, uint64_t vm_base, size_t vm_size) {
-    auto const page_mask = (uint64_t)page_size() - 1;
-
-    // Validate the whole layout up front, so a bail-out costs nothing.
-    for (auto const& seg : object.segments) {
-      if (is_pagezero(seg)) continue;
-      if (seg.vmaddr < vm_base) return nullptr;
-      if (seg.vmaddr + seg.vmsize > vm_base + vm_size) return nullptr;
-      if (seg.filesize > seg.vmsize) return nullptr;
-      if (seg.vmaddr & page_mask) return nullptr;
-      if (seg.filesize && (seg.fileoff & page_mask)) return nullptr;
-      if (seg.fileoff + seg.filesize > sl.size) return nullptr;
-    }
-
+  // Returns the load address, or nullptr if anything fails -- the caller then falls back
+  // to the previous whole-slice overlay rather than leaving a half-built image behind.
+  void* map_segments(int fd, macho::Object const& object, uint64_t vm_base, size_t vm_size) {
     // Reserve the whole span first so the segments keep their relative layout even if we
     // don't get the preferred address.
     void* base = ::mmap((void*)vm_base, vm_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
@@ -82,23 +115,14 @@ namespace {
       if (is_pagezero(seg) || seg.vmsize == 0) continue;
       int const prot = final_prot(seg) | PROT_WRITE;
       auto const at = (char*)(seg.vmaddr + slide);
+      auto const off = (off_t)(seg.vmaddr - vm_base);
 
-      if (seg.filesize != 0) {
-        auto const off = (off_t)(sl.offset + seg.fileoff);
-        if (::mmap(at, seg.filesize, prot, MAP_PRIVATE | MAP_FIXED, fd, off) == MAP_FAILED) {
-          ::munmap(base, vm_size);
-          return nullptr;
-        }
-      }
-
-      // The zerofill tail is still the PROT_NONE reservation; mmap already zeroed the slack
-      // in the last file-backed page, so only whole pages past it need opening up.
-      auto const tail = page_up(seg.filesize);
-      if (seg.vmsize > tail) {
-        if (::mprotect(at + tail, (size_t)(seg.vmsize - tail), prot) != 0) {
-          ::munmap(base, vm_size);
-          return nullptr;
-        }
+      // MAP_SHARED, not MAP_PRIVATE: the backing file is our own memfd, so this is just
+      // as private to the process, but it lets a second mapping of the same offsets
+      // alias these pages (see lib::stub::mach_vm_remap).
+      if (::mmap(at, page_up(seg.vmsize), prot, MAP_SHARED | MAP_FIXED, fd, off) == MAP_FAILED) {
+        ::munmap(base, vm_size);
+        return nullptr;
       }
     }
 
@@ -137,9 +161,14 @@ loader::Image* loader::Image::load(char const* name) {
   }
   auto const vm_size = (size_t)(vm_end - text->vmaddr);
 
+  // Deliberately never closed: the mappings outlive load(), and mach_vm_remap needs it.
+  int backing = layout_is_ordinary(sl, object, text->vmaddr, vm_size)
+                    ? make_backing(file, sl, object, text->vmaddr, vm_size)
+                    : -1;
+
   // Try to load at the preferred address, one mapping per segment.
   bool segments_mapped = false;
-  if (void* mapped = map_segments(fd.get(), sl, object, text->vmaddr, vm_size)) {
+  if (void* mapped = backing != -1 ? map_segments(backing, object, text->vmaddr, vm_size) : nullptr) {
     ::munmap(file, size);
     address = mapped;
     segments_mapped = true;
@@ -185,6 +214,8 @@ loader::Image* loader::Image::load(char const* name) {
       .address = address,
       .slide = slide,
       .segments_mapped = segments_mapped,
+      .backing_fd = segments_mapped ? backing : -1,
+      .backing_size = segments_mapped ? vm_size : 0,
       .object = std::move(object),
   };
 }

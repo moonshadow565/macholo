@@ -1,7 +1,10 @@
 #include "lib.hpp"
 
 #include <dlfcn.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include "loader.hpp"
@@ -107,6 +110,38 @@ namespace lib::stub {
     return loader::Image::main ? loader::Image::main->address : nullptr;
   }
 
+  // WC3's packer unpacks __TEXT through this: remap the read-only text pages to a
+  // second address, mprotect *that* writable, decrypt through it. The alias has to be
+  // a distinct address -- pointing it back at the original would let the following
+  // mprotect strip PROT_EXEC from the code currently executing.
+  //
+  // Both tasks are us, and the backing memfd is laid out by VM address, so a real alias
+  // of any part of the image is a second MAP_SHARED mapping at offset (addr - base).
+  // WC3 asks for the whole image in one call, spanning every segment.
+  static int mach_vm_remap(unsigned target_task, uint64_t *target_address, uint64_t size, uint64_t mask, int flags,
+                           unsigned src_task, uint64_t src_address, int copy, int *cur_protection, int *max_protection,
+                           unsigned inheritance) {
+    constexpr int KERN_INVALID_ADDRESS = 1, KERN_FAILURE = 5, KERN_SUCCESS = 0;
+    auto const image = loader::Image::main;
+    if (!target_address || !size || !image || image->backing_fd == -1) return KERN_INVALID_ADDRESS;
+    if (copy) return KERN_FAILURE;  // snapshot semantics: nobody asks for it
+
+    auto const page = (uint64_t)::sysconf(_SC_PAGESIZE);
+    auto const src_page = src_address & ~(page - 1);
+    auto const span = (size_t)(((src_address + size + page - 1) & ~(page - 1)) - src_page);
+
+    auto const base = (uint64_t)image->address;
+    auto const backing_size = image->backing_size;
+    if (src_page < base || src_page + span > base + backing_size) return KERN_INVALID_ADDRESS;
+
+    void *alias = ::mmap(nullptr, span, PROT_READ | PROT_WRITE, MAP_SHARED, image->backing_fd, (off_t)(src_page - base));
+    if (alias == MAP_FAILED) return KERN_FAILURE;
+    *target_address = (uint64_t)alias + (src_address - src_page);
+    if (cur_protection) *cur_protection = PROT_READ | PROT_WRITE;
+    if (max_protection) *max_protection = PROT_READ | PROT_WRITE | PROT_EXEC;
+    return KERN_SUCCESS;
+  }
+
   static int dlclose(void *handle) {
     // dont care, allways success
     return 0;
@@ -139,6 +174,7 @@ namespace lib::stub {
     assert_that(image != nullptr);
     for (auto const& b : image->object.bind_lazy) {
       if (b.stream_offset != lazy_offset) continue;
+      if (getenv("MACHOLO_TRACE_LAZY")) fprintf(stderr, "[lazy] %s\n", b.name.c_str());
       auto const p = lib::resolve_import(b.name);
       if (!p) panic("lazy bind: unresolved %s", b.name.c_str());
       auto const target = (uintptr_t)p + b.value;
@@ -236,6 +272,7 @@ void *lib::resolve(std::string_view name) {
       OVERRIDE("_dyld_get_image_name", &stub::dyld_get_image_name),
       OVERRIDE("_dyld_get_image_vmaddr_slide", &stub::dyld_get_image_vmaddr_slide),
       OVERRIDE("_NSGetMachExecuteHeader", &stub::NSGetMachExecuteHeader),
+      OVERRIDE("mach_vm_remap", &stub::mach_vm_remap),
       OVERRIDE("dladdr", &stub::dladdr),
       OVERRIDE("dlclose", &stub::dlclose),
       OVERRIDE("dlerror", &stub::dlerror),

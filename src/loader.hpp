@@ -10,6 +10,12 @@ namespace loader {
         // load() got one mapping per segment (rather than the flat whole-slice fallback),
         // so protect() may hand out the real per-segment protections.
         bool segments_mapped;
+        // Anonymous shared file holding this image's slice; the segments are mapped
+        // MAP_SHARED from it, which is what makes a second, aliasing mapping of the
+        // same pages possible (mach_vm_remap). -1 when the flat fallback was used.
+        int backing_fd;
+        // Size of that backing file, i.e. the image's whole VM span.
+        size_t backing_size;
         macho::Object object;
 
         // NOTE: searches all segments — modern binaries split sections like __mod_init_func,
