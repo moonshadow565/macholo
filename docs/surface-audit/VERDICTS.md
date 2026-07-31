@@ -252,6 +252,12 @@ Two coherent policies; pick one and make the shims follow it:
 Until this is decided, `_strerror` / `_strerror_r` stay SHIM (`_strerror_r` needs a shim under either
 policy — glibc's exported `strerror_r` is the GNU `char *`-returning variant, not Darwin's XSI `int` one).
 
+**Decision (2026-07-31): Policy A.** Both reference games are regression-verified under glibc
+numbering, and B breaks the `errno = 0; call(); if (errno)` idiom for FORWARD-lane calls unless
+`__error()` grows refresh-on-read machinery. Ship the Darwin-table `strerror`/`strerror_r` shims
+under A; revisit B as its own item if a guest is ever caught branching on a diverged `E*` literal
+(the socket-`EAGAIN` family is the likely first offender — Darwin 35 vs Linux 11).
+
 ---
 
 ## 5. arm64 caveats parked for the aarch64/Android track
