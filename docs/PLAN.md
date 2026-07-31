@@ -150,6 +150,15 @@ enumerate via dispatch logging on 16.3, which drives the same Metal path when av
 ### Phase 5 — more games
 Pick 2–3 macOS-only x86_64 titles; run the audit tool; implement deltas. Each new game
 should reduce to "N missing symbols + M missing selectors", with per-game cost dropping.
+- **In progress: Warcraft III 1.31** (`wc3-bringup` branch, not merged here yet — see
+  [LOADER.md](LOADER.md) for the running real-vs-faked ledger). Boots through all of
+  Cocoa startup on the strength of phase 0-4 loader work (FAT slicing, `__DATA_CONST`
+  section search, TLV, `%gs` TSD, comm page, objc categories) plus new loader work
+  this binary specifically needed: a VM-address-laid-out `mach_vm_remap`-capable
+  backing file (WC3's self-decrypting `__INIT0` packer) and genuine lazy binding
+  through `dyld_stub_binder` (its integrity pass resets stubs and relies on it).
+  Currently walled on Battle.net's proprietary ClientSdk during offline handling —
+  being probed on a separate experimental branch.
 
 ## Known issues
 - ~~16.3 + llvmpipe >4 threads segfaults~~ **RETRACTED (same day).** The "crash" never
