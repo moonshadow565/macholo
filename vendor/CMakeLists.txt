@@ -53,6 +53,36 @@ set(CMAKE_PROJECT_libobjc_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/libobjc2-fixup.cm
 
 add_subdirectory(libobjc2 EXCLUDE_FROM_ALL)
 
+# Pin the language of libobjc2's ObjC sources, for the reason gnustep-base-cmake
+# already pins its own (see the comment there): both C and OBJC claim the `.m`
+# extension in CMake's extension->language map -- likewise CXX and OBJCXX for `.mm`
+# -- and which one wins depends on the order the languages happen to be
+# (re)initialised, which is not stable across reconfigures of an existing cache.
+# gnustep-base pins from inside its own CMakeLists; libobjc2 cannot, because the
+# vendored file must stay byte-identical to upstream v2.3, so it is pinned here.
+#
+# The damage when `.m` loses to C is specific and hard to read back from the
+# symptom.  Upstream applies -fobjc-runtime=gnustep-2.0 through a
+# $<COMPILE_LANGUAGE:OBJC> generator expression, so the flag silently disappears and
+# associate.m, properties.m and fast_paths.m compile against the legacy GCC runtime
+# instead.  Their __objc_exec_class constructors then set the runtime to LegacyABI
+# before libobjc2's own __objc_load constructor runs, and *every* macholo binary
+# aborts before main with:
+#
+#     Version 2 Objective-C ABI may not be mixed with earlier versions.
+#
+# Observed once in the wild (2026-07-31, during the null-Metal bring-up), which is
+# what prompted this pin.
+set(_libobjc_objc_srcs
+    NSBlocks.m associate.m blocks_runtime.m blocks_runtime_np.m fast_paths.m
+    mutation.m properties.m)
+list(TRANSFORM _libobjc_objc_srcs PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/libobjc2/")
+set_source_files_properties(${_libobjc_objc_srcs}
+    DIRECTORY libobjc2 PROPERTIES LANGUAGE OBJC)
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/libobjc2/arc.mm"
+    DIRECTORY libobjc2 PROPERTIES LANGUAGE OBJCXX)
+unset(_libobjc_objc_srcs)
+
 # objc/runtime.h does #include "objc-config.h", which libobjc2 generates into its
 # own binary dir; consumers need that dir on the include path too.
 target_include_directories(objc INTERFACE

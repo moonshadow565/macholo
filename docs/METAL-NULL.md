@@ -219,22 +219,28 @@ and were fixed in their own modules, not here:
 What is *not* covered: nothing renders, so there is no picture and no way to tell a
 correct frame from a wrong one. Everything visual remains phase 4's real job.
 
-### Environment note
+### A build landmine this bring-up walked into
 
-The vendored GNUstep build (`vendor/`, the default since `924f95b7c`) currently aborts at
-process start with *"Version 2 Objective-C ABI may not be mixed with earlier versions."*,
-independently of any Metal work. Cause: in libobjc2's own directory `project(libobjc C ASM
-CXX)` enables C before its later `enable_language(OBJC OBJCXX)`, so `.m` files there bind
-to language **C**; upstream's `-fobjc-runtime=gnustep-2.0` is applied through a
-`$<COMPILE_LANGUAGE:OBJC>` generator expression that therefore never fires, and
-`associate.m`, `properties.m` and `fast_paths.m` compile against the legacy GCC runtime.
-Their `__objc_exec_class` constructors set the runtime to `LegacyABI` before libobjc2's own
-`__objc_load` runs, which aborts. `vendor/gnustep-base-cmake` is unaffected (it is
-macholo-written and passes the flag unconditionally). The work here was done against the
-prebuilt sysroot instead:
+Midway through, every macholo binary started aborting before `main` with
 
 ```
-CC=clang CXX=clang++ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCMAKE_ASM_COMPILER=/usr/bin/clang \
-    -DGNUSTEP_DIR=/home/user/dev/macholo/deps/sysroot/usr/GNUstep
+Version 2 Objective-C ABI may not be mixed with earlier versions.
 ```
+
+Nothing to do with Metal. libobjc2's `.m` files had flipped from language OBJC to language
+**C** in CMake's extension→language map — the exact hazard
+`vendor/gnustep-base-cmake/CMakeLists.txt` already warns about and pins against for its own
+sources. Upstream libobjc2 applies `-fobjc-runtime=gnustep-2.0` through a
+`$<COMPILE_LANGUAGE:OBJC>` generator expression, so when the language flips the flag
+silently disappears and `associate.m`, `properties.m` and `fast_paths.m` compile against the
+legacy GCC runtime. Their `__objc_exec_class` constructors set the runtime to `LegacyABI`
+before libobjc2's own `__objc_load` constructor runs, and `__objc_load` aborts.
+
+Diagnosis path, for next time: the message comes from `vendor/libobjc2/loader.c`, and
+`nm -u` over `build/vendor/libobjc2/CMakeFiles/objc.dir/*.o | grep __objc_exec_class` names
+the offending translation units directly.
+
+`vendor/CMakeLists.txt` now pins `LANGUAGE OBJC`/`OBJCXX` on libobjc2's sources after
+`add_subdirectory`, which is where it has to go — the vendored `CMakeLists.txt` must stay
+byte-identical to upstream v2.3. The vendored build (`vendor/`, the default since
+`924f95b7c`) is otherwise fine and is what everything above was built and verified with.
