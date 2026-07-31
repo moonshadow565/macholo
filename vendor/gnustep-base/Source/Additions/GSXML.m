@@ -2671,10 +2671,7 @@ getEntityDefault(void *ctx, const xmlChar *name, BOOL resolve)
                   return NULL;
                 }
               ret->owner = 1;
-              if (ret->checked == 0)
-                {
-                  ret->checked = 1;
-                }
+              
             }
         }
     }
