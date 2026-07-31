@@ -372,6 +372,17 @@ Rules:
 - Behaviour when `dlsym` itself returns null is unchanged: `lib::resolve()` returns null and
   `resolve_import()`'s existing caller (`stub::dyld_stub_binder` / the eager bind loop) reports it.
 
+**Supervisor correction (2026-07-31) — provenance-gate the check.** Lane 4 is how *every*
+plain stub-lib export, GNUstep CF/NS symbol and libobjc symbol resolves too (that is the flat
+namespace working as designed) — none of those are in the allowlist, so the gate as specified
+above would warn on hundreds of legitimate symbols and panic in strict mode on the first
+AppKit class ref. The allowlist requirement applies only to the audited-risk domain: after
+`dlsym` succeeds, `dladdr` the result; enforce (warn / strict-panic) **only if the defining
+object is glibc's `libc.so.6` or `libm.so.6`**. Resolutions provided by `libstub.so`, the
+GNUstep/sysroot libs, `libobjc`, `libdispatch`, `libgcc_s`, SDL/GL/asound pass silently.
+`dladdr` cost is paid once per symbol (bind results are cached upstream), and only on the
+not-allowlisted path.
+
 ### 7.3 `warn_once`
 
 A file-local helper in `src/lib.cpp`, defined **above** `lib::resolve()` (no forward declaration needed
