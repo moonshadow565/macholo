@@ -1,10 +1,12 @@
 #include <common.h>
 #include <Foundation/NSURL.h>
-#include "CoreFoundation/CFArray.h"
-#include "CoreFoundation/CFBase.h"
 #include "CoreFoundation/CFBundle.h"
-#include "CoreFoundation/CFDictionary.h"
-#include "CoreFoundation/CFURL.h"
+
+// minicf.h last: it re-declares the shadowed CF entry points, so the CFRetain/CFRelease
+// calls below land on mini-CF (ObjC lifetime) rather than on corebase's CFRuntime --
+// which matters here, where the objects in flight are NSURLs and gnustep-base
+// dictionaries handed over by corebase's own NSBundle-backed CFBundle.
+#include "minicf.h"
 
 // DATA:
 // NSImageNameStopProgressFreestandingTemplate
