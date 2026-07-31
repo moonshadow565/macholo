@@ -1,5 +1,6 @@
 # IOKit — registry/service surface
 add_library(stub-iokit OBJECT
+    IOHIDStubs.c
     stub_iokit.c
 )
 target_include_directories(stub-iokit PRIVATE ${STUB_SRC_DIR})

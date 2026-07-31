@@ -33,9 +33,11 @@ if(MACHOLO_GAME_STUBS)
 endif()
 add_subdirectory(src/iokit)
 add_subdirectory(src/libsystem)
+add_subdirectory(src/metal)
 add_subdirectory(src/objc-rt)
 add_subdirectory(src/scriptingbridge)
 add_subdirectory(src/security)
+add_subdirectory(src/systemconfiguration)
 
 set(STUB_GAME_OBJECTS "")
 if(MACHOLO_GAME_STUBS)
@@ -58,9 +60,11 @@ add_library(stub SHARED
     ${STUB_GAME_OBJECTS}
     $<TARGET_OBJECTS:stub-iokit>
     $<TARGET_OBJECTS:stub-libsystem>
+    $<TARGET_OBJECTS:stub-metal>
     $<TARGET_OBJECTS:stub-objc-rt>
     $<TARGET_OBJECTS:stub-scriptingbridge>
     $<TARGET_OBJECTS:stub-security>
+    $<TARGET_OBJECTS:stub-systemconfiguration>
 )
 set_target_properties(stub PROPERTIES LINKER_LANGUAGE OBJC)
 target_include_directories(stub PRIVATE src/)

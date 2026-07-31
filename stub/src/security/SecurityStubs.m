@@ -4,11 +4,6 @@
 #include "CoreFoundation/CFDictionary.h"
 #include "CoreFoundation/CFString.h"
 
-// Neither CF nor NS surface (Security.framework's Sec* API); kept in foundation/ per the
-// Misc.m dissolution's leftover bucket. See docs/REFACTOR.md Stage 2b report -- this
-// arguably belongs alongside src/security/stub_securetransport.c, but that regrouping is
-// out of scope for this stage's pure code motion.
-
 // DATA: Security.framework attribute keys/values. On Apple these are CFStringRefs; the
 // game only ever uses them as keys/values in the query dictionary it hands to
 // SecItemCopyMatching (stubbed below), so toll-free-bridged constant NSStrings with the

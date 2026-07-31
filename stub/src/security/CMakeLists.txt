@@ -1,5 +1,6 @@
 # Security — SecureTransport/trust (fail-clean)
 add_library(stub-security OBJECT
+    SecurityStubs.m
     stub_securetransport.c
 )
 target_include_directories(stub-security PRIVATE ${STUB_SRC_DIR})
