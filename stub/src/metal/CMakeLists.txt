@@ -1,5 +1,11 @@
-# Metal — deliberately its own module: this is the seam where 16.15 Metal HLE will grow.
+# Metal — the null renderer (docs/METAL-NULL.md). Its own module because this is the seam
+# where a real 16.15 Metal backend grows.
 add_library(stub-metal OBJECT
+    MetalTypes.h
+    MACHOLONullObject.h
+    MACHOLONullObject.m
+    MTLDescriptors.h
+    MTLDescriptors.m
     MetalStubs.c
 )
 target_include_directories(stub-metal PRIVATE ${STUB_SRC_DIR})
