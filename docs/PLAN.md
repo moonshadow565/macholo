@@ -143,6 +143,14 @@ enumerate via dispatch logging on 16.3, which drives the same Metal path when av
       targeted AIR→SPIR-V — comparable effort either way against this uniform corpus;
       budget months. Caveat to carry: every shader sets `fast_math_enable` — map
       deliberately onto SPIR-V relaxed-math or expect visual drift.
+- [x] **Null Metal renderer (2026-07-31): 16.15 boots headless.** Opt-in via
+      `MACHOLO_METAL=null`; unset keeps `MTLCreateSystemDefaultDevice` returning NULL so
+      16.3/14.8 stay on the GL path (both gates verified). 16.15 now reaches
+      `GAMESTATE_GAMELOOP` and plays the replay stub out to `GAMESTATE_ENDGAME` with every
+      Metal call discarded. The point beyond the gate: the ~125 selectors the engine
+      actually demands are now written down as the spec for a real backend — see
+      [METAL-NULL.md](METAL-NULL.md). Confirms the census's claim of no compute work, and
+      shows texture uploads go through blit-from-buffer, not `-replaceRegion:`.
 - [ ] Mini-Metal runtime facade over Vulkan (lavapipe works headless, Vulkan 1.3 +
       timeline semaphores required by indium). Demoted from the critical path by 16.3's
       GL renderer.
