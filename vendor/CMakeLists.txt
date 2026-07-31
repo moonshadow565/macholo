@@ -11,6 +11,7 @@
 #   vendor/libdispatch   swift-corelibs-libdispatch swift-6.0.2-RELEASE
 #                                                137b6cf3060eae87d9b367c263619c2eca5d3aac
 #   vendor/libxml2       libxml2   v2.12.10     02d577715e1951cf114ca4e9adaf5605156c4f4c
+#   vendor/libffi        libffi    v3.5.2       e2eda0cf72a0598b44278cc91860ea402273fa29
 #
 # The full inventory, with the reason each dep is vendored (or deliberately not),
 # lives in vendor/README.md.
@@ -199,6 +200,11 @@ set(LIBXML2_WITH_LZMA     OFF CACHE BOOL "libxml2: liblzma input" FORCE)
 set(LIBXML2_WITH_ZLIB     OFF CACHE BOOL "libxml2: libz input" FORCE)
 
 add_subdirectory(libxml2 EXCLUDE_FROM_ALL)
+
+# ---------------------------------------------------------------------------
+# libffi (hand-written CMake; upstream is autotools-only)
+# ---------------------------------------------------------------------------
+add_subdirectory(libffi-cmake)
 
 # ---------------------------------------------------------------------------
 # gnustep-base (hand-written CMake over the vendored sources)

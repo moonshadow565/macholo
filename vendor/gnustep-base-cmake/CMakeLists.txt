@@ -378,7 +378,7 @@ target_include_directories(gnustep-base-objs PRIVATE
     "${GSBASE_SRC}/Source/Additions"
     "${GSBASE_SRC}/Source/unix"
 )
-target_link_libraries(gnustep-base-objs PRIVATE objc dispatch LibXml2::LibXml2)
+target_link_libraries(gnustep-base-objs PRIVATE objc dispatch ffi LibXml2::LibXml2)
 
 add_library(gnustep-base SHARED $<TARGET_OBJECTS:gnustep-base-objs>)
 set_target_properties(gnustep-base PROPERTIES
@@ -392,7 +392,8 @@ target_link_libraries(gnustep-base PRIVATE
     objc
     LibXml2::LibXml2
     dispatch
-    -lpthread -lffi -lz -lrt -ldl -lm
+    ffi
+    -lpthread -lz -lrt -ldl -lm
 )
 target_link_options(gnustep-base PRIVATE -pthread -fexceptions -rdynamic)
 
