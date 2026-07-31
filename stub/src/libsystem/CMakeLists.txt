@@ -3,10 +3,13 @@ add_library(stub-libsystem OBJECT
     stub_asl.c
     stub_compat.c
     stub_dispatch.c
+    stub_errno.c
+    stub_signal.c
     stub_fs.c
     stub_io.c
     stub_kernel.c
     stub_kernel_kqueue.c
+    stub_locale.c
     stub_mach_vm.c
     stub_malloc.c
     stub_math.c

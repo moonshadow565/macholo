@@ -1,6 +1,7 @@
 # x86_64 arch quarantine — anything naming a register, an ABI struct-return
 # convention, or written in .S belongs here (an arm64 port adds arch-aarch64/).
 add_library(stub-arch-x86_64 OBJECT
+    setjmp.S
     sincos_stret.c
     stub_objc.S
 )

@@ -53,11 +53,6 @@ int $darwin$__darwin_check_fd_set_overflow(int n, const void *fd_set, int unlimi
   return 1;
 }
 
-int *$darwin$__error() {
-  // NOTE: this is correct
-  return __errno_location();
-}
-
 // DATA: the task's bootstrap server port. There is no launchd here.
 uint32_t bootstrap_port = 0;
 
@@ -406,4 +401,25 @@ __attribute__((constructor)) static void vm_page_size_init(void) {
 void voucher_mach_msg_set() {
   // TODO
   panic("voucher_mach_msg_set");
+}
+
+// Track 3 (docs/surface-audit/VERDICTS.md): Darwin CLOCK_MONOTONIC=6 landed on
+// Linux CLOCK_MONOTONIC_COARSE=6 -- the frame clock silently degraded to ~4 ms
+// granularity. struct timespec is identical; only the clockid needs mapping.
+int $darwin$clock_gettime(int clk, struct timespec *ts) {
+  int l;
+  switch (clk) {
+    case 0: l = CLOCK_REALTIME; break;
+    case 4: l = CLOCK_MONOTONIC_RAW; break;
+    case 5: l = CLOCK_MONOTONIC_RAW; break;  // _APPROX: precision is an upgrade
+    case 6: l = CLOCK_MONOTONIC; break;
+    case 8:                                  // CLOCK_UPTIME_RAW
+    case 9: l = CLOCK_MONOTONIC; break;      // CLOCK_UPTIME_RAW_APPROX
+    case 12: l = CLOCK_PROCESS_CPUTIME_ID; break;
+    case 16: l = CLOCK_THREAD_CPUTIME_ID; break;
+    default:
+      *__errno_location() = EINVAL;  // 22 on both sides
+      return -1;
+  }
+  return clock_gettime(l, ts);
 }

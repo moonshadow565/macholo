@@ -87,3 +87,34 @@ int $darwin$posix_spawn_file_actions_init() {
   panic("posix_spawn_file_actions_init");
   return 0;
 }
+
+// Darwin posix_spawnattr_t is an 8-byte opaque pointer; glibc's is a 336-byte
+// caller-allocated struct, so forwarding these lets glibc memset 328 bytes past
+// the guest's slot (docs/surface-audit/VERDICTS.md). Init/destroy/setflags are
+// harmless no-ops on the Darwin-sized slot -- attr setup can run at startup
+// without anything ever being spawned; actually spawning panics like the
+// file_actions siblings above.
+int $darwin$posix_spawnattr_init(void** attr) {
+  if (attr) *attr = NULL;
+  return 0;
+}
+
+int $darwin$posix_spawnattr_destroy(void** attr) {
+  return 0;
+}
+
+int $darwin$posix_spawnattr_setflags(void** attr, short flags) {
+  return 0;
+}
+
+int $darwin$posix_spawn(pid_t* pid, const char* path, const void* file_actions, const void* attrp,
+                        char* const argv[], char* const envp[]) {
+  panic("posix_spawn: %s", path);
+  return 78;  // Darwin ENOSYS, if panic ever becomes non-fatal
+}
+
+int $darwin$posix_spawnp(pid_t* pid, const char* file, const void* file_actions, const void* attrp,
+                         char* const argv[], char* const envp[]) {
+  panic("posix_spawnp: %s", file);
+  return 78;
+}

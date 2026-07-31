@@ -49,3 +49,57 @@ void *$darwin$mmap(void *addr, size_t len, int prot, int flags, int fd, off_t of
   // printf("mmap(%p, %zx, %x, %x, %d, %zx) = %p\n", addr, len, prot, flags, fd, offset, ret);
   return ret;
 }
+
+// Track 3 (docs/surface-audit/VERDICTS.md): dlsym finds glibc's GNU basename
+// (never strips trailing slashes) and glibc's dirname mutates its argument;
+// Darwin's are POSIX-with-a-copy. Implemented directly on per-thread buffers.
+static _Thread_local char basename_buf[1024] __attribute__((tls_model("initial-exec")));
+static _Thread_local char dirname_buf[1024] __attribute__((tls_model("initial-exec")));
+
+char *$darwin$basename(const char *path) {
+  if (!path || !*path) {
+    strcpy(basename_buf, ".");
+    return basename_buf;
+  }
+  size_t end = strlen(path);
+  while (end > 1 && path[end - 1] == '/') end--;
+  if (end == 1 && path[0] == '/') {
+    strcpy(basename_buf, "/");
+    return basename_buf;
+  }
+  size_t start = end;
+  while (start > 0 && path[start - 1] != '/') start--;
+  size_t n = end - start;
+  if (n >= sizeof(basename_buf)) n = sizeof(basename_buf) - 1;
+  memcpy(basename_buf, path + start, n);
+  basename_buf[n] = 0;
+  return basename_buf;
+}
+
+char *$darwin$dirname(const char *path) {
+  if (!path || !*path) {
+    strcpy(dirname_buf, ".");
+    return dirname_buf;
+  }
+  size_t end = strlen(path);
+  while (end > 1 && path[end - 1] == '/') end--;
+  while (end > 0 && path[end - 1] != '/') end--;  // drop last component
+  while (end > 1 && path[end - 1] == '/') end--;  // drop separator run
+  if (end == 0) {
+    strcpy(dirname_buf, ".");
+    return dirname_buf;
+  }
+  if (end >= sizeof(dirname_buf)) end = sizeof(dirname_buf) - 1;
+  memcpy(dirname_buf, path, end);
+  dirname_buf[end] = 0;
+  return dirname_buf;
+}
+
+// strptime: prototype and return convention match; Darwin (FreeBSD-derived) and
+// glibc differ on %Z outside known zone names, %p outside the C locale, and
+// untouched-field behavior (VERDICTS.md INVESTIGATE). Routed through a shim so
+// the divergence is a grep away if a guest ever trips on it.
+extern char *strptime(const char *s, const char *format, void *tm);
+char *$darwin$strptime(const char *s, const char *format, void *tm) {
+  return strptime(s, format, tm);
+}

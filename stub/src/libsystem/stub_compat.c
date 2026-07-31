@@ -123,3 +123,11 @@ void *$darwin$NSLookupSymbolInModule(void *module, const char *symbolName) {
 void *$darwin$NSAddressOfSymbol(void *symbol) {
   return NULL;
 }
+
+// Track 3 (docs/surface-audit/VERDICTS.md): glibc's backtrace() unwinds via
+// dl_iterate_phdr, which has no ELF object for Mach-O guest frames -- libgcc
+// reports a fatal unwind error instead of a clean stop. Same cheap answer as
+// backtrace_from_fp above: report an empty stack.
+int $darwin$backtrace(void **array, int size) {
+  return 0;
+}

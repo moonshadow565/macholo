@@ -346,3 +346,36 @@ int $darwin$setsockopt(int fd, int level, int optname, const void *optval, sockl
   if (optname == -1) return 0;  // ignore
   return setsockopt(fd, level, optname, optval, optlen);
 }
+
+// Track 3 (docs/surface-audit/VERDICTS.md): socket()/socketpair() fell through to
+// glibc with Darwin AF_* values (AF_INET6 30 lands on AF_TIPC) while bind/connect/
+// accept above already translate -- close the gap with the same table.
+int $darwin$socket(int domain, int type, int protocol) {
+  // SOCK_STREAM/DGRAM/RAW agree; Darwin has no SOCK_CLOEXEC/NONBLOCK bits in type.
+  return socket(sa_family_to_gnu(domain), type, protocol);
+}
+
+int $darwin$socketpair(int domain, int type, int protocol, int sv[2]) {
+  return socketpair(sa_family_to_gnu(domain), type, protocol, sv);
+}
+
+// MSG_* diverge above bit 3: Darwin WAITALL=0x40 is Linux DONTWAIT, Darwin
+// DONTWAIT=0x80 is Linux EOR, Darwin TRUNC=0x10 is Linux PROBE.
+static int msg_flags_to_gnu(int f) {
+  int l = f & 0x7;  // OOB/PEEK/DONTROUTE agree
+  if (f & 0x8) l |= MSG_EOR;
+  if (f & 0x10) l |= MSG_TRUNC;
+  if (f & 0x20) l |= MSG_CTRUNC;
+  if (f & 0x40) l |= MSG_WAITALL;
+  if (f & 0x80) l |= MSG_DONTWAIT;
+  if (f & 0x80000) l |= MSG_NOSIGNAL;
+  return l;
+}
+
+ssize_t $darwin$recv(int fd, void *buf, size_t len, int flags) {
+  return recv(fd, buf, len, msg_flags_to_gnu(flags));
+}
+
+ssize_t $darwin$send(int fd, const void *buf, size_t len, int flags) {
+  return send(fd, buf, len, msg_flags_to_gnu(flags));
+}

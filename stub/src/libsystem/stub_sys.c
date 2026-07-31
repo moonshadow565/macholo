@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/resource.h>
 
 #include <common.h>
 
@@ -251,3 +252,79 @@ int $darwin$uname(struct $darwin$utsname *buf) {
 }
 
 void $darwin$__cxa_throw() { panic("throwing dont work"); }
+
+// Track 3 (docs/surface-audit/VERDICTS.md): the whole _SC_* namespace is
+// renumbered between Darwin and glibc (Darwin _SC_NPROCESSORS_ONLN=58 is an
+// unrelated Linux limit). Map the names, don't guess numbers.
+long $darwin$sysconf(int name) {
+  switch (name) {
+    case 1: return sysconf(_SC_ARG_MAX);
+    case 2: return sysconf(_SC_CHILD_MAX);
+    case 3: return sysconf(_SC_CLK_TCK);
+    case 4: return sysconf(_SC_NGROUPS_MAX);
+    case 5: return sysconf(_SC_OPEN_MAX);
+    case 8: return sysconf(_SC_VERSION);
+    case 29: return sysconf(_SC_PAGESIZE);
+    case 57: return sysconf(_SC_NPROCESSORS_CONF);
+    case 58: return sysconf(_SC_NPROCESSORS_ONLN);
+    case 200: return sysconf(_SC_PHYS_PAGES);
+    default:
+      fprintf(stderr, "[sysconf] unhandled darwin name: %d\n", name);
+      *__errno_location() = EINVAL;
+      return -1;
+  }
+}
+
+// RLIMIT_* renumbered too: Darwin NOFILE=8 is Linux MEMLOCK, so raising the fd
+// limit was silently locking memory instead. RLIM_INFINITY is 0x7fffffffffffffff
+// on Darwin vs ~0UL on Linux; translate both directions.
+#define DARWIN_RLIM_INFINITY 0x7fffffffffffffffull
+
+static int rlimit_resource_to_gnu(int r) {
+  switch (r) {
+    case 0: return RLIMIT_CPU;
+    case 1: return RLIMIT_FSIZE;
+    case 2: return RLIMIT_DATA;
+    case 3: return RLIMIT_STACK;
+    case 4: return RLIMIT_CORE;
+    case 5: return RLIMIT_AS;  // Darwin RLIMIT_AS == RLIMIT_RSS == 5
+    case 6: return RLIMIT_MEMLOCK;
+    case 7: return RLIMIT_NPROC;
+    case 8: return RLIMIT_NOFILE;
+    default: return -1;
+  }
+}
+
+int $darwin$getrlimit(int resource, struct rlimit *rlp) {
+  int l = rlimit_resource_to_gnu(resource);
+  if (l < 0) {
+    *__errno_location() = EINVAL;
+    return -1;
+  }
+  int r = getrlimit(l, rlp);
+  if (r == 0) {
+    if (rlp->rlim_cur == RLIM_INFINITY || rlp->rlim_cur > DARWIN_RLIM_INFINITY) rlp->rlim_cur = DARWIN_RLIM_INFINITY;
+    if (rlp->rlim_max == RLIM_INFINITY || rlp->rlim_max > DARWIN_RLIM_INFINITY) rlp->rlim_max = DARWIN_RLIM_INFINITY;
+  }
+  return r;
+}
+
+int $darwin$setrlimit(int resource, const struct rlimit *rlp) {
+  int l = rlimit_resource_to_gnu(resource);
+  if (l < 0) {
+    *__errno_location() = EINVAL;
+    return -1;
+  }
+  struct rlimit lim = *rlp;
+  if (lim.rlim_cur == DARWIN_RLIM_INFINITY) lim.rlim_cur = RLIM_INFINITY;
+  if (lim.rlim_max == DARWIN_RLIM_INFINITY) lim.rlim_max = RLIM_INFINITY;
+  return setrlimit(l, &lim);
+}
+
+// struct rusage field offsets agree (the timeval tv_usec width difference hides
+// in padding), but ru_maxrss is bytes on Darwin vs KiB on Linux.
+int $darwin$getrusage(int who, struct rusage *ru) {
+  int r = getrusage(who, ru);  // RUSAGE_SELF/CHILDREN agree
+  if (r == 0) ru->ru_maxrss *= 1024;
+  return r;
+}

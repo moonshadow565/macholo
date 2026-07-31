@@ -1,6 +1,11 @@
 #define __USE_LARGEFILE64 1
 #define _GNU_SOURCE 1
 #include <dirent.h>
+#include <errno.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <sys/file.h>
+#include <sys/xattr.h>
 #include <fcntl.h>
 #include <glob.h>
 #include <stdio.h>
@@ -228,4 +233,157 @@ int $darwin$statfs$INODE64(char const *path, struct $darwin$statfs64 *s) {
   strncpy(s->f_mntonname, "/", sizeof(s->f_mntonname) - 1);
   strncpy(s->f_mntfromname, path, sizeof(s->f_mntfromname) - 1);
   return 0;
+}
+
+// Track 3 (docs/surface-audit/VERDICTS.md): open() was the headline yolo-lane bug --
+// Darwin O_CREAT=0x200/O_TRUNC=0x400 land on Linux as O_TRUNC/O_APPEND with no
+// O_CREAT at all. Full flag translation; O_SHLOCK/O_EXLOCK emulate via flock.
+int $darwin$open(const char *path, int oflag, ...) {
+  int mode = 0;
+  if (oflag & 0x200) {
+    va_list ap;
+    va_start(ap, oflag);
+    mode = va_arg(ap, int);
+    va_end(ap);
+  }
+  int l = oflag & O_ACCMODE;  // low two bits agree
+  if (oflag & 0x0004) l |= O_NONBLOCK;
+  if (oflag & 0x0008) l |= O_APPEND;
+  if (oflag & 0x0080) l |= O_SYNC;
+  if (oflag & 0x0100) l |= O_NOFOLLOW;
+  if (oflag & 0x0200) l |= O_CREAT;
+  if (oflag & 0x0400) l |= O_TRUNC;
+  if (oflag & 0x0800) l |= O_EXCL;
+  if (oflag & 0x20000) l |= O_NOCTTY;
+  if (oflag & 0x100000) l |= O_DIRECTORY;
+  if (oflag & 0x200000) l |= O_NOFOLLOW;  // O_SYMLINK: closest Linux behavior
+  if (oflag & 0x1000000) l |= O_CLOEXEC;
+  int fd = open(path, l, mode);
+  if (fd >= 0 && (oflag & 0x30)) flock(fd, (oflag & 0x20) ? LOCK_EX : LOCK_SH);
+  return fd;
+}
+
+// fcntl: commands 0..4 agree, the lock/owner families are renumbered, struct flock
+// is reordered (BSD: start,len,pid,type,whence vs Linux: type,whence,start,len,pid)
+// and F_RDLCK/F_WRLCK values differ. Darwin-only commands get local handling.
+struct $darwin$flock {
+  int64_t l_start;
+  int64_t l_len;
+  int32_t l_pid;
+  int16_t l_type;   // F_RDLCK=1 F_UNLCK=2 F_WRLCK=3
+  int16_t l_whence;
+};
+
+static short lock_type_to_gnu(short t) { return t == 1 ? F_RDLCK : t == 3 ? F_WRLCK : F_UNLCK; }
+static short lock_type_to_darwin(short t) { return t == F_RDLCK ? 1 : t == F_WRLCK ? 3 : 2; }
+
+static int oflags_to_gnu(int f) {
+  int l = f & O_ACCMODE;
+  if (f & 0x4) l |= O_NONBLOCK;
+  if (f & 0x8) l |= O_APPEND;
+  if (f & 0x40) l |= O_ASYNC;
+  return l;
+}
+
+static int oflags_to_darwin(int l) {
+  int f = l & O_ACCMODE;
+  if (l & O_NONBLOCK) f |= 0x4;
+  if (l & O_APPEND) f |= 0x8;
+  if (l & O_ASYNC) f |= 0x40;
+  if (l & O_CREAT) f |= 0x200;
+  return f;
+}
+
+int $darwin$fcntl(int fd, int cmd, ...) {
+  va_list ap;
+  va_start(ap, cmd);
+  void *arg = va_arg(ap, void *);
+  va_end(ap);
+  switch (cmd) {
+    case 0:  // F_DUPFD
+    case 1:  // F_GETFD
+    case 2:  // F_SETFD (FD_CLOEXEC=1 agrees)
+      return fcntl(fd, cmd, arg);
+    case 3:  // F_GETFL
+      return oflags_to_darwin(fcntl(fd, F_GETFL));
+    case 4:  // F_SETFL
+      return fcntl(fd, F_SETFL, oflags_to_gnu((int)(intptr_t)arg));
+    case 5:  // F_GETOWN
+      return fcntl(fd, F_GETOWN);
+    case 6:  // F_SETOWN
+      return fcntl(fd, F_SETOWN, arg);
+    case 7:    // F_GETLK
+    case 8:    // F_SETLK
+    case 9: {  // F_SETLKW
+      struct $darwin$flock *dfl = arg;
+      struct flock lfl = {
+          .l_type = lock_type_to_gnu(dfl->l_type),
+          .l_whence = dfl->l_whence,
+          .l_start = dfl->l_start,
+          .l_len = dfl->l_len,
+          .l_pid = dfl->l_pid,
+      };
+      int r = fcntl(fd, cmd == 7 ? F_GETLK : cmd == 8 ? F_SETLK : F_SETLKW, &lfl);
+      if (r == 0 && cmd == 7) {
+        dfl->l_type = lock_type_to_darwin(lfl.l_type);
+        dfl->l_whence = lfl.l_whence;
+        dfl->l_start = lfl.l_start;
+        dfl->l_len = lfl.l_len;
+        dfl->l_pid = lfl.l_pid;
+      }
+      return r;
+    }
+    case 67:  // F_DUPFD_CLOEXEC
+      return fcntl(fd, F_DUPFD_CLOEXEC, arg);
+    case 48:  // F_NOCACHE: no Linux equivalent, direct I/O toggle -- accept and ignore
+      return 0;
+    case 51:  // F_FULLFSYNC
+      return fsync(fd);
+    case 50: {  // F_GETPATH: fill caller's MAXPATHLEN(1024) buffer
+      char proc[64];
+      snprintf(proc, sizeof(proc), "/proc/self/fd/%d", fd);
+      ssize_t n = readlink(proc, arg, 1023);
+      if (n < 0) return -1;
+      ((char *)arg)[n] = 0;
+      return 0;
+    }
+    case 44: {  // F_RDADVISE { off_t offset; int count; }
+      struct { int64_t offset; int count; } *ra = arg;
+      return posix_fadvise(fd, ra->offset, ra->count, POSIX_FADV_WILLNEED) ? -1 : 0;
+    }
+    default:
+      fprintf(stderr, "[fcntl] unhandled darwin cmd: %d\n", cmd);
+      *__errno_location() = EINVAL;
+      return -1;
+  }
+}
+
+// utimensat: AT_FDCWD is -2 on Darwin vs -100 on Linux; AT_SYMLINK_NOFOLLOW is
+// 0x20 vs 0x100. UTIME_NOW/UTIME_OMIT values agree, struct timespec is identical.
+int $darwin$utimensat(int fd, const char *path, const struct timespec times[2], int flag) {
+  return utimensat(fd == -2 ? AT_FDCWD : fd, path, times, (flag & 0x20) ? AT_SYMLINK_NOFOLLOW : 0);
+}
+
+// xattr family: Darwin appends (position, options) args Linux doesn't have --
+// glibc reads 'position' as 'flags'. XATTR_NOFOLLOW(1) selects the l-variants;
+// XATTR_CREATE/REPLACE (2/4) map to Linux's 1/2.
+ssize_t $darwin$getxattr(const char *path, const char *name, void *value, size_t size, uint32_t position, int options) {
+  return (options & 1) ? lgetxattr(path, name, value, size) : getxattr(path, name, value, size);
+}
+
+int $darwin$setxattr(const char *path, const char *name, const void *value, size_t size, uint32_t position, int options) {
+  int flags = ((options & 2) ? XATTR_CREATE : 0) | ((options & 4) ? XATTR_REPLACE : 0);
+  return (options & 1) ? lsetxattr(path, name, value, size, flags) : setxattr(path, name, value, size, flags);
+}
+
+int $darwin$removexattr(const char *path, const char *name, int options) {
+  return (options & 1) ? lremovexattr(path, name) : removexattr(path, name);
+}
+
+// Paired with $darwin$glob$INODE64 above: whatever layout that shim produced
+// (currently a glibc glob64_t, pre-existing FIXME) is what must be freed here --
+// forwarding to glibc's globfree (non-64) or letting the guest's layout leak
+// through would mismatch the allocation.
+void $darwin$globfree(glob64_t *pglob) {
+  globfree64(pglob);
 }
