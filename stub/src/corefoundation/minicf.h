@@ -26,6 +26,7 @@
 // retain their elements -- which is exactly kCFType*CallBacks, the only callbacks the
 // games pass.
 
+#include "CoreFoundation/CFArray.h"
 #include "CoreFoundation/CFBase.h"
 #include "CoreFoundation/CFString.h"
 #include "CoreFoundation/CFURL.h"
@@ -52,6 +53,16 @@ Boolean CFStringGetCString(CFStringRef theString, char *buffer, CFIndex bufferSi
     DARWIN_SHADOW(CFStringGetCString);
 const char *CFStringGetCStringPtr(CFStringRef theString, CFStringEncoding encoding)
     DARWIN_SHADOW(CFStringGetCStringPtr);
+
+// --- CFArray (CFArray.m) ---------------------------------------------------------
+extern const CFArrayCallBacks kCFTypeArrayCallBacks DARWIN_SHADOW(kCFTypeArrayCallBacks);
+CFArrayRef CFArrayCreate(CFAllocatorRef allocator, const void **values, CFIndex numValues,
+                         const CFArrayCallBacks *callBacks) DARWIN_SHADOW(CFArrayCreate);
+CFMutableArrayRef CFArrayCreateMutable(CFAllocatorRef allocator, CFIndex capacity,
+                                       const CFArrayCallBacks *callBacks) DARWIN_SHADOW(CFArrayCreateMutable);
+void CFArrayAppendValue(CFMutableArrayRef theArray, const void *value) DARWIN_SHADOW(CFArrayAppendValue);
+CFIndex CFArrayGetCount(CFArrayRef theArray) DARWIN_SHADOW(CFArrayGetCount);
+const void *CFArrayGetValueAtIndex(CFArrayRef theArray, CFIndex idx) DARWIN_SHADOW(CFArrayGetValueAtIndex);
 
 // --- CFURL (CFURL.m) --------------------------------------------------------------
 CFURLRef CFURLCreateWithFileSystemPath(CFAllocatorRef allocator, CFStringRef filePath, CFURLPathStyle pathStyle,
