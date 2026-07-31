@@ -39,6 +39,12 @@ add_library(stub SHARED
     src/appkit/NSView.m
     src/appkit/NSWindow.h
     src/appkit/NSWindow.m
+    src/appkit/NSWindowController.h
+    src/appkit/NSWindowController.m
+    src/appkit/NSWorkspace.h
+    src/appkit/NSWorkspace.m
+    src/appkit/SBApplication.h
+    src/appkit/SBApplication.m
 
     # CoreGraphics
     src/coregraphics/CG.h

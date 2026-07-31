@@ -10,6 +10,38 @@
 
 NSApplication *NSApp = Nil;
 
+// DATA: notification names / run-loop modes the game imports directly. The string
+// values match what setDelegate registers observers for below.
+NSString *NSApplicationDidBecomeActiveNotification = @"NSApplicationDidBecomeActiveNotification";
+NSString *NSApplicationDidChangeOcclusionStateNotification = @"NSApplicationDidChangeOcclusionStateNotification";
+NSString *NSApplicationDidChangeScreenParametersNotification = @"NSApplicationDidChangeScreenParametersNotification";
+NSString *NSApplicationDidFinishLaunchingNotification = @"NSApplicationDidFinishLaunchingNotification";
+NSString *NSApplicationDidResignActiveNotification = @"NSApplicationDidResignActiveNotification";
+NSString *NSApplicationWillBecomeActiveNotification = @"NSApplicationWillBecomeActiveNotification";
+NSString *NSApplicationWillFinishLaunchingNotification = @"NSApplicationWillFinishLaunchingNotification";
+NSString *NSApplicationWillHideNotification = @"NSApplicationWillHideNotification";
+NSString *NSApplicationWillResignActiveNotification = @"NSApplicationWillResignActiveNotification";
+NSString *NSApplicationWillUnhideNotification = @"NSApplicationWillUnhideNotification";
+NSString *NSEventTrackingRunLoopMode = @"NSEventTrackingRunLoopMode";
+NSString *NSModalPanelRunLoopMode = @"NSModalPanelRunLoopMode";
+NSString *NSStringPboardType = @"NSStringPboardType";
+
+// CODE:
+BOOL NSApplicationLoad(void) {
+  // Carbon-era bootstrap: "connect to the window server". Nothing to connect to.
+  [NSApplication sharedApplication];
+  return YES;
+}
+
+int NSApplicationMain(int argc, const char *argv[]) {
+  // Not expected on the current path (the game drives its own loop); if this fires the
+  // bring-up needs a real [NSApp run] equivalent.
+  panic("NSApplicationMain called -- implement a run loop for it");
+}
+
+void NSBeep(void) {
+}
+
 @implementation NSApplication {
   id<NSApplicationDelegate> _delegate;
   NSEvent *_current_event;
@@ -19,7 +51,9 @@ NSApplication *NSApp = Nil;
   // panic("Unimplemented!");
   if (NSApp == nil) {
     SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO);
-    NSApp = [[[NSApplication alloc] init] retain];
+    // Alloc through +self so a subclass (WC3's MacApplication) gets an instance of
+    // itself, exactly like the real +sharedApplication.
+    NSApp = [[[self alloc] init] retain];
   }
   return NSApp;
 }
