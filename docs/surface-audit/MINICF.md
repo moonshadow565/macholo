@@ -206,15 +206,77 @@ Two consequences:
 - Anything whose Darwin behaviour can't be reproduced honestly gets a `panic()` stub
   rather than a plausible wrong answer.
 
-## 5. Residual distance to actually deleting corebase
+---
 
-Known before phase 4 measures it (that experiment is report-only, per the brief):
+## 5. What landed
 
-1. `src/objc.cpp` needs `CFStringGetTypeID`, `_CFRuntimeGetClassWithTypeID` and the
-   `NSCFString` class — a `src/` change, out of scope here.
-2. `CFBundleGetMainBundle`/`CFBundleGetIdentifier` stay on corebase for now: corebase's
-   `CFBundle` is itself a thin shim over gnustep-base `NSBundle`, and `stub`'s own
-   `CFBundle.m` deliberately does *not* shadow them (the game feeds the `CFBundleRef`
-   back into corebase). Moving CFBundle to NSBundle is a separate, larger step.
-3. `libstub.so` has a link-time `DT_NEEDED` on corebase, as does `build/macholo`
-   (`stub/gnustep/CMakeLists.txt` `-lgnustep-corebase`).
+`stub/src/corefoundation/`, six commits, one per CF type group; `minicf.h` holds the
+design note and the `DARWIN_SHADOW` asm-label mechanism. 25 new `$darwin$` exports
+(baseline 662 → 685):
+
+| group | file | entry points |
+|---|---|---|
+| base | `CFBase.m` | `CFRetain`, `CFRelease`, `CFAutorelease`, `CFMakeCollectable`, `kCFAllocatorDefault` |
+| CFString | `CFString.m` | `CFStringCreateWithBytes`, `CFStringCreateWithCString`, `CFStringCompare`, `CFStringGetCString`, `CFStringGetCStringPtr` |
+| CFArray | `CFArray.m` | `CFArrayCreate`, `CFArrayCreateMutable`, `CFArrayAppendValue`, `CFArrayGetCount`, `CFArrayGetValueAtIndex`, `kCFTypeArrayCallBacks` |
+| CFDictionary | `CFDictionary.m` | `CFDictionaryCreate`, `CFDictionaryGetValue`, `CFDictionaryContainsValue`, `CFDictionaryApplyFunction` |
+| CFData | `CFData.m` | `CFDataCreate`, `CFDataGetBytePtr`, `CFDataGetLength` |
+| misc | `CFMisc.m` | `CFUUIDCreate`, `CFUUIDGetUUIDBytes`, `CFPropertyListCreateFromXMLData`, `kCFBooleanTrue`, `kCFBooleanFalse` |
+| CFURL | `CFURL.m` | pre-existing, converted from hand-written `$darwin$` names to the macro |
+
+Verified the same way §3 was measured: after the six groups, a 16.3 run to GAMELOOP
+binds **25 `$darwin$CF*` symbols out of `libstub.so`** and only **5** symbols out of
+corebase — `CFBundleGetMainBundle`, `CFBundleGetIdentifier` (guest) and
+`CFStringGetTypeID`, `_CFRuntimeGetClassWithTypeID`, `._OBJC_CLASS_NSCFString`
+(`src/objc.cpp`). Gates: 16.3 PASS after every group, 14.8 PASS at phase end; the 16.3
+log is identical to the pre-mini-CF baseline modulo thread ids and pointer values.
+
+Deliberately **not** shadowed: `CFGetTypeID`/`CFEqual`/`CFHash` (no binary imports
+them, and a CF type ID for an NS object would have to be invented), and all of
+`CFBundle` beyond the gap-fillers already in `CFBundle.m`.
+
+## 6. Residual distance to actually deleting corebase — measured
+
+Experiment (built, run, then reverted; nothing below is landed): drop
+`-lgnustep-corebase` from `stub/gnustep/CMakeLists.txt`, which is the single place it
+enters the link — the `GNUStep` INTERFACE target every module and the loader use.
+
+**Link stops with 8 undefined symbols, all referenced by `libstub.so` itself:**
+
+| symbol | referenced by | distance |
+|---|---|---|
+| `CFRetain`, `CFRelease` | `coregraphics/CG.m` | one line: mini-CF already implements them, `CG.m` just calls the plain names |
+| `CFStringCreateWithCString`, `CFArrayCreate`, `kCFTypeArrayCallBacks` | `carbon/stub_carbon.m` | same — mini-CF has all three |
+| `CFBundleCreate`, `CFBundleCopyBundleURL`, `CFBundleGetInfoDictionary` | `corefoundation/CFBundle.m` | **real work**: needs an NSBundle-backed CFBundle |
+
+Rerouting the first five to mini-CF (asm-labelled externs, the same trick the module
+uses internally) and stubbing the three CFBundle calls makes the link **completely
+clean** — 0 undefined symbols, no corebase in `DT_NEEDED`. The process then gets
+further than expected and dies at:
+
+```
+unresolved at ... _CFBundleGetIdentifier +0
+unresolved at ... _CFBundleGetMainBundle +0
+src/objc.cpp:401 _CFRuntimeGetClassWithTypeID != nullptr
+```
+
+(the eight `_OBJC_CLASS_$_MTL*`/`CAMetalLayer` "unresolved objc" lines above it are
+pre-existing — Metal is not implemented — and appear in a normal green run too.)
+
+So the residual distance is exactly three things, in increasing size:
+
+1. **CFBundle** — `CFBundleGetMainBundle`, `CFBundleGetIdentifier` (guest imports) plus
+   `CFBundleCreate`, `CFBundleCopyBundleURL`, `CFBundleGetInfoDictionary` (our own
+   callers). corebase's CFBundle is itself a thin shim over gnustep-base `NSBundle`, so
+   this is a mechanical port, but `CFBundle.m` currently and deliberately does *not*
+   shadow the getters (the game feeds the `CFBundleRef` back into corebase), so it has
+   to move as one piece.
+2. **Two cross-module callers** (`CG.m`, `stub_carbon.m`) that call plain CF names and
+   need to see mini-CF's declarations — one include each, once `minicf.h` (or a public
+   header split out of it) is reachable from other modules.
+3. **`src/objc.cpp`'s `__cfstring` converter** — the hard one, and the only one outside
+   `stub/`: it needs a `CFStringGetTypeID`, a `_CFRuntimeGetClassWithTypeID` whose
+   returned class table it can patch, and an `NSCFString` class to use as the literals'
+   `isa`. Under mini-CF the natural answer is to stop pretending literals are CFRuntime
+   objects and give them a gnustep constant-string `isa` directly, but that is a `src/`
+   change and out of scope for this track.
