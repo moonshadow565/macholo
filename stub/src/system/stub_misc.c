@@ -208,3 +208,14 @@ void CFNotificationCenterAddObserver(void *center, const void *observer, void *c
 void CFNotificationCenterRemoveObserver(void *center, const void *observer, const void *name, const void *object) {
   // NOTE: paired with the no-op AddObserver above.
 }
+
+// Blizzard Battle.net "Client SDK" (BGS launcher integration). No implementation exists
+// under macholo, and the game only lazily binds it -- so leaving it unresolved panics.
+// WC3's init site does `handle = ClientSdk_Init(...); if (!handle) goto offline;`, so
+// returning NULL cleanly routes it down the SDK-unavailable path. The rest of the family
+// is defined too, in case any is reached before the offline branch is taken.
+void *ClientSdk_Init(void) { return NULL; }
+void *ClientSdk_CreateInstance(void) { return NULL; }
+void *ClientSdk_GetInterface(void) { return NULL; }
+void ClientSdk_DeleteInstance(void) {}
+void ClientSdk_Shutdown(void) {}
