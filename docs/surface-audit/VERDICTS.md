@@ -252,11 +252,17 @@ Two coherent policies; pick one and make the shims follow it:
 Until this is decided, `_strerror` / `_strerror_r` stay SHIM (`_strerror_r` needs a shim under either
 policy — glibc's exported `strerror_r` is the GNU `char *`-returning variant, not Darwin's XSI `int` one).
 
-**Decision (2026-07-31): Policy A.** Both reference games are regression-verified under glibc
-numbering, and B breaks the `errno = 0; call(); if (errno)` idiom for FORWARD-lane calls unless
-`__error()` grows refresh-on-read machinery. Ship the Darwin-table `strerror`/`strerror_r` shims
-under A; revisit B as its own item if a guest is ever caught branching on a diverged `E*` literal
-(the socket-`EAGAIN` family is the likely first offender — Darwin 35 vs Linux 11).
+**Decision (2026-07-31, revised same day): Policy B via refresh-on-read `__error()`.** Key
+insight (user-prompted): Darwin `<errno.h>` is `#define errno (*__error())`, so every guest
+errno access funnels through `$darwin$__error()` — one choke point, no per-shim translation.
+Implementation: `$darwin$__error()` returns a thread-local Darwin-numbered slot, refreshed on
+each call with change detection (per-thread `last_glibc` copy; translate only when glibc's
+`*__errno_location()` moved since the last look — this preserves guest `errno = 0` writes and
+therefore the `errno = 0; call(); if (errno)` idiom that sank naive Policy B). Shims keep
+setting glibc errno like host code. Requires a Linux→Darwin errno table (~135 entries);
+`strerror`/`strerror_r` shims become Darwin-table lookups consistent with what guests read.
+Residual edge accepted: a guest caching the `int*` across calls skips refresh — nonstandard,
+and Darwin's macro re-calls `__error()` per access.
 
 ---
 
