@@ -231,6 +231,28 @@ Stages sequential (2a→2b share module CMakeLists; not worth conflict risk).
 Supervisor session runs gates between stages and keeps a second opus in reserve for
 whatever breaks; it reviews diffs rather than re-doing work.
 
+## Track 3 (proposed 2026-07-31) — explicit libsystem surface, kill the yolo lane
+
+Input: real-Mac export dumps (`~/projects/osx-libs/macos-exports-26.6-arm64/`, both
+arches + objc metadata; regenerate with `tools/mac-dump-exports.sh`) and the
+[libsystem mapping](MACOS-26.6-SURFACE.md). Idea: today resolver lane 4
+(`dlsym(nullptr, name)`) silently binds any unhandled Darwin symbol to the
+same-named glibc symbol — correct for `memcpy`, quietly ABI-wrong for anything
+struct/errno/off_t-shaped. Replace accident with audit:
+
+1. Classify every game-imported libsystem symbol: explicitly stubbed / falls
+   through to glibc / unresolved. The fall-through set is the audit set.
+2. Split the audit set: safe-forward (identical ABI+semantics) vs needs a
+   `$darwin$` shim, shims grouped into the per-module files from track 1
+   (Apple's own `libsystem_*` sublibrary boundaries say which file).
+3. Emit a checked-in forward allowlist the resolver consumes; lane 4 becomes
+   deny-by-default (unknown import = loud bind-time error, not a glibc guess).
+
+Also the natural home for bionic-vs-glibc deltas when the aarch64/Android track
+starts. Sequencing: after the track-1 PR lands; classification is sonnet-shaped
+work with the decision rules written down, ABI-divergence review is the part that
+needs care.
+
 ## aarch64 / Android outlook (why the split is shaped like this)
 
 Goal on record: an eventual **arm64 Android replay-playback client**. 16.x League
