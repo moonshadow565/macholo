@@ -619,7 +619,7 @@ namespace macho::raw {
   impl_command(LC_LAZY_LOAD_DYLIB, load_command);
   impl_command(LC_ENCRYPTION_INFO, encryption_info_command);
   impl_command(LC_DYLD_INFO, dyld_info_command);
-  impl_command(LC_LOAD_UPWARD_DYLIB, load_command);
+  impl_command(LC_LOAD_UPWARD_DYLIB, dylib_command);
   impl_command(LC_VERSION_MIN_MACOSX, version_min_command);
   impl_command(LC_VERSION_MIN_IPHONEOS, version_min_command);
   impl_command(LC_FUNCTION_STARTS, linkedit_data_command);
@@ -1092,6 +1092,8 @@ macho::Object macho::Object::read(void* image) {
     } else if (auto const c = cmd.is<LC_LOAD_WEAK_DYLIB>()) {
       object.dylibs.push_back({std::string(c->name.str_view()), true});
     } else if (auto const c = cmd.is<LC_REEXPORT_DYLIB>()) {
+      object.dylibs.push_back({std::string(c->name.str_view()), false});
+    } else if (auto const c = cmd.is<LC_LOAD_UPWARD_DYLIB>()) {
       object.dylibs.push_back({std::string(c->name.str_view()), false});
     } else if (auto const c = cmd.is<LC_RPATH>()) {
       object.rpaths.push_back(std::string(c->path.str_view()));
