@@ -1,8 +1,8 @@
 #!/bin/sh
 # Run on a real Mac. Dumps the export list of the frameworks/dylibs macholo cares
 # about, per architecture, into a tarball to scp back to the VM. Uses dyld_info
-# (macOS 12+, works against the dyld shared cache — the dylibs no longer exist as
-# files on disk, so nm/otool on the paths would fail).
+# (macOS 12+, works against the dyld shared cache — most of these no longer exist
+# as files on disk, so nm/otool on the paths would fail).
 #
 #   sh mac-dump-exports.sh
 #   scp macos-exports-*.tgz <vm>:
@@ -15,7 +15,21 @@ mkdir -p "$out"
 FRAMEWORKS="CoreFoundation Foundation AppKit CoreGraphics ApplicationServices
 CoreServices Carbon Security AudioToolbox CoreAudio IOKit ScriptingBridge
 Metal QuartzCore OpenGL CoreText CoreVideo"
-DYLIBS="/usr/lib/libSystem.B.dylib /usr/lib/libobjc.A.dylib /usr/lib/libc++.1.dylib"
+
+DYLIBS="libSystem.B libobjc.A libc++.1 libc++abi libresolv.9 libiconv.2 libicucore.A"
+
+# The libSystem umbrella re-exports these, so the flat libSystem.B list already
+# contains their symbols — but the per-sublibrary split (which symbol lives where)
+# is exactly what maps onto macholo's libsystem/ module files. Cache-resident:
+# enumerate by name, tolerate misses across OS versions.
+SYSLIBS="libsystem_asl libsystem_blocks libsystem_c libsystem_collections
+libsystem_configuration libsystem_containermanager libsystem_coreservices
+libsystem_darwin libsystem_dnssd libsystem_featureflags libsystem_info
+libsystem_kernel libsystem_m libsystem_malloc libsystem_networkextension
+libsystem_notify libsystem_platform libsystem_pthread libsystem_sandbox
+libsystem_secinit libsystem_symptoms libsystem_trace libcache libcommonCrypto
+libcompiler_rt libcopyfile libcorecrypto libdispatch libdyld libkeymgr libmacho
+libquarantine libremovefile libunwind libxpc"
 
 dump() { # $1=path $2=basename
     for arch in arm64 x86_64; do
@@ -28,20 +42,29 @@ dump() { # $1=path $2=basename
     done
 }
 
+dump_objc() { # $1=path $2=basename — classes/protocols/categories metadata
+    for arch in arm64 x86_64; do
+        if dyld_info -arch "$arch" -objc "$1" > "$out/$2.objc.txt" 2>/dev/null \
+           && [ -s "$out/$2.objc.txt" ]; then
+            echo "  $2 [objc/$arch]: $(wc -l < "$out/$2.objc.txt") lines"
+            return 0
+        fi
+        rm -f "$out/$2.objc.txt"
+    done
+}
+
 for f in $FRAMEWORKS; do
-    dump "/System/Library/Frameworks/$f.framework/$f" "$f"
+    p="/System/Library/Frameworks/$f.framework/$f"
+    dump "$p" "$f"
+    dump_objc "$p" "$f"
 done
 for d in $DYLIBS; do
-    dump "$d" "$(basename "$d" .dylib)"
+    dump "/usr/lib/$d.dylib" "$d"
 done
-
-# objc class/protocol surface of the big three (what the metadata converter and a
-# future mini-CF would bridge against); best-effort, flag exists on newer dyld_info.
-for f in CoreFoundation Foundation AppKit; do
-    dyld_info -arch arm64 -objc "/System/Library/Frameworks/$f.framework/$f" \
-        > "$out/$f.objc.txt" 2>/dev/null && [ -s "$out/$f.objc.txt" ] \
-        || rm -f "$out/$f.objc.txt"
+for s in $SYSLIBS; do
+    dump "/usr/lib/system/$s.dylib" "$s"
 done
+dump_objc /usr/lib/libobjc.A.dylib libobjc.A
 
 tar czf "$out.tgz" "$out"
 echo "wrote $out.tgz — scp it to the VM (any path, e.g. ~/) and tell the session"
