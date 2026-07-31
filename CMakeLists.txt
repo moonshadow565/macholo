@@ -11,6 +11,14 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${CXX_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -fuse-ld=lld -Wl,--allow-shlib-undefined -lc++abi")
 
+# GNUstep dependencies. Default (empty GNUSTEP_DIR) builds the vendored libobjc2 +
+# gnustep-base under vendor/; see docs/GNUSTEP-BUILD.md. Setting -DGNUSTEP_DIR=<dir>
+# is the escape hatch back to a prebuilt sysroot (deps/build-sysroot.sh).
+set(GNUSTEP_DIR "" CACHE STRING "Prebuilt GNUstep sysroot; empty = build vendor/ from source")
+if(NOT GNUSTEP_DIR)
+    add_subdirectory(vendor)
+endif()
+
 add_subdirectory(stub)
 
 add_executable(macholo
