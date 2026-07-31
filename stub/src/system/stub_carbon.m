@@ -29,25 +29,28 @@ enum { noErr = 0, paramErr = -50, fnfErr = -43, eventNotHandledErr = -9874 };
 // Text Input Sources
 // ---------------------------------------------------------------------------
 
-// DATA: property/notification keys. The game only ever passes these straight back to
-// TISGetInputSourceProperty, which has no source to look them up on.
-CFStringRef kTISPropertyInputSourceCategory = (CFStringRef) "TSMInputSourceCategory";
-CFStringRef kTISPropertyInputSourceType = (CFStringRef) "TSMInputSourceType";
-CFStringRef kTISPropertyInputSourceID = (CFStringRef) "TSMInputSourceID";
-CFStringRef kTISPropertyInputModeID = (CFStringRef) "TSMInputModeID";
-CFStringRef kTISPropertyLocalizedName = (CFStringRef) "TSMInputSourceLocalizedName";
-CFStringRef kTISPropertyInputSourceLanguages = (CFStringRef) "TSMInputSourceLanguages";
-CFStringRef kTISPropertyUnicodeKeyLayoutData = (CFStringRef) "TSMInputSourceKeyLayoutData";
-CFStringRef kTISPropertyIconImageURL = (CFStringRef) "TSMInputSourceIconImageURL";
-CFStringRef kTISPropertyIconRef = (CFStringRef) "TSMInputSourceIconRef";
-CFStringRef kTISPropertyInputSourceIsASCIICapable = (CFStringRef) "TSMInputSourceIsASCIICapable";
-CFStringRef kTISPropertyInputSourceIsEnableCapable = (CFStringRef) "TSMInputSourceIsEnableCapable";
-CFStringRef kTISPropertyInputSourceIsSelectCapable = (CFStringRef) "TSMInputSourceIsSelectCapable";
-CFStringRef kTISPropertyInputSourceIsEnabled = (CFStringRef) "TSMInputSourceIsEnabled";
-CFStringRef kTISPropertyInputSourceIsSelected = (CFStringRef) "TSMInputSourceIsSelected";
-CFStringRef kTISCategoryKeyboardInputSource = (CFStringRef) "TISCategoryKeyboardInputSource";
-CFStringRef kTISNotifySelectedKeyboardInputSourceChanged = (CFStringRef) "AppleSelectedInputSourcesChangedNotification";
-CFStringRef kTISNotifyEnabledKeyboardInputSourcesChanged = (CFStringRef) "AppleEnabledInputSourcesChangedNotification";
+// DATA: property/notification keys. WC3 also builds an input-source query dictionary from
+// these (kTISCategoryKeyboardInputSource as a value), which retains them -- so they must be
+// real toll-free-bridged NSStrings (@"..."), not bare C strings whose first bytes would be
+// read as a garbage isa. Pointer identity for the TISGetInputSourceProperty key check below
+// still holds, since the game imports these very symbols.
+CFStringRef kTISPropertyInputSourceCategory = (CFStringRef) @"TSMInputSourceCategory";
+CFStringRef kTISPropertyInputSourceType = (CFStringRef) @"TSMInputSourceType";
+CFStringRef kTISPropertyInputSourceID = (CFStringRef) @"TSMInputSourceID";
+CFStringRef kTISPropertyInputModeID = (CFStringRef) @"TSMInputModeID";
+CFStringRef kTISPropertyLocalizedName = (CFStringRef) @"TSMInputSourceLocalizedName";
+CFStringRef kTISPropertyInputSourceLanguages = (CFStringRef) @"TSMInputSourceLanguages";
+CFStringRef kTISPropertyUnicodeKeyLayoutData = (CFStringRef) @"TSMInputSourceKeyLayoutData";
+CFStringRef kTISPropertyIconImageURL = (CFStringRef) @"TSMInputSourceIconImageURL";
+CFStringRef kTISPropertyIconRef = (CFStringRef) @"TSMInputSourceIconRef";
+CFStringRef kTISPropertyInputSourceIsASCIICapable = (CFStringRef) @"TSMInputSourceIsASCIICapable";
+CFStringRef kTISPropertyInputSourceIsEnableCapable = (CFStringRef) @"TSMInputSourceIsEnableCapable";
+CFStringRef kTISPropertyInputSourceIsSelectCapable = (CFStringRef) @"TSMInputSourceIsSelectCapable";
+CFStringRef kTISPropertyInputSourceIsEnabled = (CFStringRef) @"TSMInputSourceIsEnabled";
+CFStringRef kTISPropertyInputSourceIsSelected = (CFStringRef) @"TSMInputSourceIsSelected";
+CFStringRef kTISCategoryKeyboardInputSource = (CFStringRef) @"TISCategoryKeyboardInputSource";
+CFStringRef kTISNotifySelectedKeyboardInputSourceChanged = (CFStringRef) @"AppleSelectedInputSourcesChangedNotification";
+CFStringRef kTISNotifyEnabledKeyboardInputSourcesChanged = (CFStringRef) @"AppleEnabledInputSourcesChangedNotification";
 
 TISInputSourceRef TISCopyCurrentKeyboardInputSource(void) {
   return NULL;
@@ -66,6 +69,18 @@ CFArrayRef TISCreateInputSourceList(CFDictionaryRef properties, unsigned char in
 }
 
 void *TISGetInputSourceProperty(TISInputSourceRef inputSource, CFStringRef propertyKey) {
+  // The game reads the current input source's language list -- CFArrayGetCount then
+  // -[obj length] on each element -- with no NULL check, so NULL here faults in
+  // CFArrayGetCount. Hand back a one-element {"en"} CFArray (GNUstep bridges CFString to
+  // NSString, so -length works). Other properties are genuinely unused; keep them NULL.
+  if (propertyKey == kTISPropertyInputSourceLanguages) {
+    extern void *CFStringCreateWithCString(const void *alloc, const char *cStr, unsigned encoding);
+    extern void *CFArrayCreate(const void *alloc, const void **values, long numValues, const void *callBacks);
+    extern const char kCFTypeArrayCallBacks;
+    const void *en = CFStringCreateWithCString(NULL, "en", 0x08000100u /* kCFStringEncodingUTF8 */);
+    const void *values[1] = {en};
+    return CFArrayCreate(NULL, values, 1, &kCFTypeArrayCallBacks);
+  }
   return NULL;
 }
 

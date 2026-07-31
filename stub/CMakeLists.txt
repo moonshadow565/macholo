@@ -57,7 +57,7 @@ add_library(stub SHARED
     # libSystem
     src/system/stub_asl.c
     src/system/stub_audio.c
-    src/system/stub_carbon.c
+    src/system/stub_carbon.m
     src/system/stub_dispatch.c
     src/system/stub_fs.c
     src/system/stub_io.c
