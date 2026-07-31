@@ -15,6 +15,8 @@
   BOOL _needsDisplay;
   BOOL _wantsBestResolutionOpenGLSurface;
   NSTextInputContext* _inputContext;
+  BOOL _wantsLayer;
+  id _layer;
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
@@ -90,6 +92,21 @@
     _inputContext = [[NSTextInputContext alloc] initWithClient: self];
   }
   return _inputContext;
+}
+
+- (BOOL)wantsLayer {
+  return _wantsLayer;
+}
+- (void)setWantsLayer:(BOOL)flag {
+  _wantsLayer = flag;
+}
+- (id)layer {
+  return _layer;
+}
+- (void)setLayer:(id)layer {
+  [layer retain];
+  [_layer release];
+  _layer = layer;
 }
 
 - (void)addTrackingArea:(id)trackingArea {

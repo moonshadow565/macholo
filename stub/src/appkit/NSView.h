@@ -28,6 +28,13 @@
 
 - (NSTextInputContext *)inputContext;
 
+// Layer backing. There is no CoreAnimation here; the only layer 16.15 ever installs is a
+// CAMetalLayer (stub/src/metal/), which the view just has to hold on to and hand back.
+- (BOOL)wantsLayer;
+- (void)setWantsLayer:(BOOL)flag;
+- (id)layer;
+- (void)setLayer:(id)layer;
+
 // NSTrackingArea itself is not implemented (16.15 leaves the class ref unresolved, so the
 // game hands us nil); mouse enter/exit/move tracking is unconditional in NSEvent anyway.
 - (void)addTrackingArea:(id)trackingArea;

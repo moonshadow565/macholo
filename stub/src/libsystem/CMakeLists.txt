@@ -2,7 +2,7 @@
 add_library(stub-libsystem OBJECT
     stub_asl.c
     stub_compat.c
-    stub_dispatch.c
+    stub_dispatch.m
     stub_errno.c
     stub_signal.c
     stub_fs.c
