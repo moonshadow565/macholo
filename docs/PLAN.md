@@ -152,12 +152,14 @@ Pick 2–3 macOS-only x86_64 titles; run the audit tool; implement deltas. Each 
 should reduce to "N missing symbols + M missing selectors", with per-game cost dropping.
 
 ## Known issues
-- **16.3 + llvmpipe with >4 threads segfaults** shortly after `InitResources`
-  (found 2026-07-31 after the VM went 4→8 cores; crash IP in game code,
-  deterministic; 14.8 unaffected). `LP_NUM_THREADS=4` (or `taskset` to ≤4 CPUs) is a
-  reliable workaround; game-visible core count via sysctl is *not* the trigger.
-  Likely a timing-sensitive race in the game's GL renderer exposed by llvmpipe's
-  internal thread count. Any test harness must pin `LP_NUM_THREADS`.
+- ~~16.3 + llvmpipe >4 threads segfaults~~ **RETRACTED (same day).** The "crash" never
+  reproduced serially: 3 clean runs at default 8 threads, and 9 more during the
+  golden-frame evaluation. The original repro coincided with multiple agents running
+  game instances concurrently, and cleanup patterns like `pkill -f macholo` kill *all*
+  instances including other harnesses' — killed-mid-run looks exactly like a crash.
+  Lesson that stays: test tooling must use `setsid` + process-group kills, never
+  name-pattern pkill; and llvmpipe thread count needs no pinning (no determinism or
+  stability effect measured).
 
 ## Open questions
 1. Location of customlolskins-manager repo (source for the FAT parser port).
