@@ -28,6 +28,7 @@
 
 #include "CoreFoundation/CFArray.h"
 #include "CoreFoundation/CFBase.h"
+#include "CoreFoundation/CFDictionary.h"
 #include "CoreFoundation/CFString.h"
 #include "CoreFoundation/CFURL.h"
 
@@ -63,6 +64,17 @@ CFMutableArrayRef CFArrayCreateMutable(CFAllocatorRef allocator, CFIndex capacit
 void CFArrayAppendValue(CFMutableArrayRef theArray, const void *value) DARWIN_SHADOW(CFArrayAppendValue);
 CFIndex CFArrayGetCount(CFArrayRef theArray) DARWIN_SHADOW(CFArrayGetCount);
 const void *CFArrayGetValueAtIndex(CFArrayRef theArray, CFIndex idx) DARWIN_SHADOW(CFArrayGetValueAtIndex);
+
+// --- CFDictionary (CFDictionary.m) ------------------------------------------------
+CFDictionaryRef CFDictionaryCreate(CFAllocatorRef allocator, const void **keys, const void **values,
+                                   CFIndex numValues, const CFDictionaryKeyCallBacks *keyCallBacks,
+                                   const CFDictionaryValueCallBacks *valueCallBacks)
+    DARWIN_SHADOW(CFDictionaryCreate);
+const void *CFDictionaryGetValue(CFDictionaryRef theDict, const void *key) DARWIN_SHADOW(CFDictionaryGetValue);
+Boolean CFDictionaryContainsValue(CFDictionaryRef theDict, const void *value)
+    DARWIN_SHADOW(CFDictionaryContainsValue);
+void CFDictionaryApplyFunction(CFDictionaryRef theDict, CFDictionaryApplierFunction applier, void *context)
+    DARWIN_SHADOW(CFDictionaryApplyFunction);
 
 // --- CFURL (CFURL.m) --------------------------------------------------------------
 CFURLRef CFURLCreateWithFileSystemPath(CFAllocatorRef allocator, CFStringRef filePath, CFURLPathStyle pathStyle,

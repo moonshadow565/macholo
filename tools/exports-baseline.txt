@@ -4,6 +4,10 @@ $darwin$CFArrayCreateMutable
 $darwin$CFArrayGetCount
 $darwin$CFArrayGetValueAtIndex
 $darwin$CFAutorelease
+$darwin$CFDictionaryApplyFunction
+$darwin$CFDictionaryContainsValue
+$darwin$CFDictionaryCreate
+$darwin$CFDictionaryGetValue
 $darwin$CFMakeCollectable
 $darwin$CFRelease
 $darwin$CFRetain
