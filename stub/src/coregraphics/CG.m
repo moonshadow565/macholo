@@ -1,11 +1,13 @@
 #include "CG.h"
 #include <CoreFoundation/CFArray.h>
 #include <CoreFoundation/CFBase.h>
+#include <CoreFoundation/CFData.h>
 #include <CoreFoundation/CFDate.h>
 #include <CoreFoundation/CFDictionary.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_stdinc.h>
 
 @interface CGDisplayMode : NSObject {
 @public
@@ -188,3 +190,238 @@ CGError CGReleaseAllDisplays(void) {
 
 // This is linked externally, no better place to put it than here...
 CGRect const $darwin$NSZeroRect = {{0.0, 0.0}, {0.0, 0.0}};
+CGPoint const $darwin$NSZeroPoint = {0.0, 0.0};
+CGSize const $darwin$NSZeroSize = {0.0, 0.0};
+CGPoint const CGPointZero = {0.0, 0.0};
+
+// ---------------------------------------------------------------------------
+// Geometry helpers -- inline on Apple, real exports in the shipped framework.
+// ---------------------------------------------------------------------------
+
+double CGRectGetWidth(CGRect rect) {
+  return rect.size.width;
+}
+
+double CGRectGetHeight(CGRect rect) {
+  return rect.size.height;
+}
+
+CGRect CGRectIntersection(CGRect a, CGRect b) {
+  double const x0 = a.origin.x > b.origin.x ? a.origin.x : b.origin.x;
+  double const y0 = a.origin.y > b.origin.y ? a.origin.y : b.origin.y;
+  double const ax1 = a.origin.x + a.size.width, bx1 = b.origin.x + b.size.width;
+  double const ay1 = a.origin.y + a.size.height, by1 = b.origin.y + b.size.height;
+  double const x1 = ax1 < bx1 ? ax1 : bx1;
+  double const y1 = ay1 < by1 ? ay1 : by1;
+  if (x1 <= x0 || y1 <= y0) return (CGRect){{__builtin_inf(), __builtin_inf()}, {0.0, 0.0}};  // CGRectNull
+  return (CGRect){{x0, y0}, {x1 - x0, y1 - y0}};
+}
+
+// ---------------------------------------------------------------------------
+// Display geometry / configuration
+// ---------------------------------------------------------------------------
+
+size_t CGDisplayPixelsWide(CGDirectDisplayID display) {
+  return (size_t)CGDisplayBounds(display).size.width;
+}
+
+size_t CGDisplayPixelsHigh(CGDirectDisplayID display) {
+  return (size_t)CGDisplayBounds(display).size.height;
+}
+
+CGError CGGetDisplaysWithPoint(CGPoint point, uint32_t maxDisplays, CGDirectDisplayID *displays, uint32_t *count) {
+  // Single logical display; anything inside its bounds belongs to it.
+  if (count) *count = 0;
+  if (!maxDisplays || !displays) return kCGErrorSuccess;
+  CGRect const b = CGDisplayBounds(CGMainDisplayID());
+  if (point.x < b.origin.x || point.y < b.origin.y || point.x >= b.origin.x + b.size.width ||
+      point.y >= b.origin.y + b.size.height)
+    return kCGErrorSuccess;
+  displays[0] = CGMainDisplayID();
+  if (count) *count = 1;
+  return kCGErrorSuccess;
+}
+
+CGError CGGetDisplaysWithRect(CGRect rect, uint32_t maxDisplays, CGDirectDisplayID *displays, uint32_t *count) {
+  if (count) *count = 0;
+  if (!maxDisplays || !displays) return kCGErrorSuccess;
+  CGRect const isect = CGRectIntersection(rect, CGDisplayBounds(CGMainDisplayID()));
+  if (isect.size.width <= 0.0 || isect.size.height <= 0.0) return kCGErrorSuccess;
+  displays[0] = CGMainDisplayID();
+  if (count) *count = 1;
+  return kCGErrorSuccess;
+}
+
+// Deprecated mode API (CFDictionary-based). The modern CGDisplayCopyAllDisplayModes
+// path above is what the game prefers; this one only has to be non-fatal.
+CFArrayRef CGDisplayAvailableModes(CGDirectDisplayID display) {
+  return NULL;
+}
+
+CFDictionaryRef CGDisplayCurrentMode(CGDirectDisplayID display) {
+  return NULL;
+}
+
+CGError CGBeginDisplayConfiguration(void **config) {
+  if (config) *config = (void *)1;
+  return kCGErrorSuccess;
+}
+
+CGError CGConfigureDisplayMode(void *config, CGDirectDisplayID display, CFDictionaryRef mode) {
+  return kCGErrorSuccess;
+}
+
+CGError CGCompleteDisplayConfiguration(void *config, uint32_t option) {
+  return kCGErrorSuccess;
+}
+
+CGError CGCaptureAllDisplays(void) {
+  return kCGErrorSuccess;
+}
+
+boolean_t CGDisplayIsCaptured(CGDirectDisplayID display) {
+  return 0;
+}
+
+CGError CGDisplayRegisterReconfigurationCallback(void *callback, void *userInfo) {
+  // Displays never change here, so a registration that fires nothing is correct.
+  return kCGErrorSuccess;
+}
+
+CGError CGDisplayRemoveReconfigurationCallback(void *callback, void *userInfo) {
+  return kCGErrorSuccess;
+}
+
+// Gamma ramps: X11 has no per-app equivalent worth wiring up, and the game only uses
+// them for its brightness slider.
+CGError CGGetDisplayTransferByTable(CGDirectDisplayID display, uint32_t capacity, float *red, float *green, float *blue,
+                                    uint32_t *sampleCount) {
+  if (sampleCount) *sampleCount = 0;
+  return kCGErrorSuccess;
+}
+
+CGError CGSetDisplayTransferByTable(CGDirectDisplayID display, uint32_t tableSize, const float *red, const float *green,
+                                    const float *blue) {
+  return kCGErrorSuccess;
+}
+
+void CGDisplayRestoreColorSyncSettings(void) {
+}
+
+// Fade-out on mode switch. Reservations succeed and fades complete instantly.
+CGError CGAcquireDisplayFadeReservation(float seconds, uint32_t *token) {
+  if (token) *token = 1;
+  return kCGErrorSuccess;
+}
+
+CGError CGReleaseDisplayFadeReservation(uint32_t token) {
+  return kCGErrorSuccess;
+}
+
+CGError CGDisplayFade(uint32_t token, float duration, float startBlend, float endBlend, float red, float green,
+                      float blue, boolean_t synchronous) {
+  return kCGErrorSuccess;
+}
+
+boolean_t CGCursorIsVisible(void) {
+  return SDL_ShowCursor(-1 /* SDL_QUERY */) == 1 /* SDL_ENABLE */;
+}
+
+void CGSSetDebugOptions(int options) {
+  // Private WindowServer debug knob.
+}
+
+// ---------------------------------------------------------------------------
+// CGEvent -- the game taps events to detect key repeats it did not ask for. SDL
+// already owns input, so there is no tap and no source.
+// ---------------------------------------------------------------------------
+
+void *CGEventCreateMouseEvent(void *source, uint32_t mouseType, CGPoint mouseCursorPosition, uint32_t mouseButton) {
+  return NULL;
+}
+
+uint64_t CGEventGetFlags(void *event) {
+  return 0;
+}
+
+int64_t CGEventGetIntegerValueField(void *event, uint32_t field) {
+  return 0;
+}
+
+void *CGEventSourceCreate(int32_t stateID) {
+  return NULL;
+}
+
+uint64_t CGEventSourceFlagsState(int32_t stateID) {
+  return 0;
+}
+
+void *CGEventTapCreate(uint32_t tap, uint32_t place, uint32_t options, uint64_t eventsOfInterest, void *callback,
+                       void *userInfo) {
+  return NULL;
+}
+
+void CGEventTapEnable(void *tap, boolean_t enable) {
+}
+
+boolean_t CGEventTapIsEnabled(void *tap) {
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Bitmap contexts / images -- used for the software cursor and the crash screenshot.
+// Nothing consumes the results, so every constructor politely fails and the
+// destructors accept NULL.
+// ---------------------------------------------------------------------------
+
+void *CGColorSpaceCreateDeviceRGB(void) {
+  return NULL;
+}
+
+void CGColorSpaceRelease(void *space) {
+}
+
+void *CGBitmapContextCreate(void *data, size_t width, size_t height, size_t bitsPerComponent, size_t bytesPerRow,
+                            void *space, uint32_t bitmapInfo) {
+  return NULL;
+}
+
+void CGContextRelease(void *c) {
+}
+
+void CGContextFillRect(void *c, CGRect rect) {
+}
+
+void CGContextSetFillColor(void *c, const double *components) {
+}
+
+void CGContextSetFillColorSpace(void *c, void *space) {
+}
+
+void CGContextSetBlendMode(void *c, int32_t mode) {
+}
+
+void CGContextSetAllowsAntialiasing(void *c, boolean_t allowsAntialiasing) {
+}
+
+void CGContextSetShouldAntialias(void *c, boolean_t shouldAntialias) {
+}
+
+void CGContextSetInterpolationQuality(void *c, int32_t quality) {
+}
+
+void *CGDataProviderCreateWithCFData(CFDataRef data) {
+  return NULL;
+}
+
+void CGDataProviderRelease(void *provider) {
+}
+
+void *CGImageCreate(size_t width, size_t height, size_t bitsPerComponent, size_t bitsPerPixel, size_t bytesPerRow,
+                    void *space, uint32_t bitmapInfo, void *provider, const double *decode, boolean_t shouldInterpolate,
+                    int32_t intent) {
+  return NULL;
+}
+
+void CGImageRelease(void *image) {
+}
