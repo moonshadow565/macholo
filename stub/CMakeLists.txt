@@ -7,81 +7,49 @@ add_library(sdl2 INTERFACE)
 target_include_directories(sdl2 INTERFACE ${SDL2_INCLUDE_DIRS})
 target_link_libraries(sdl2 INTERFACE ${SDL2_LIBRARIES})
 
+# Shared by every stub module OBJECT lib. PIC is not implied for OBJECT libs the way
+# it was when these sources lived directly in the SHARED target, so ask for it here.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(STUB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+add_library(stub-flags INTERFACE)
+target_compile_options(stub-flags INTERFACE -Wno-nullability-completeness -Wno-c23-extensions)
+
+# One OBJECT lib per framework/module; see docs/REFACTOR.md track 1.
+add_subdirectory(src/appkit)
+add_subdirectory(src/arch-x86_64)
+add_subdirectory(src/audiotoolbox)
+add_subdirectory(src/carbon)
+add_subdirectory(src/cg)
+add_subdirectory(src/corefoundation)
+add_subdirectory(src/coregraphics)
+add_subdirectory(src/foundation)
+add_subdirectory(src/game-riot)
+add_subdirectory(src/iokit)
+add_subdirectory(src/libsystem)
+add_subdirectory(src/objc-rt)
+add_subdirectory(src/scriptingbridge)
+add_subdirectory(src/security)
+
+# The modules are aggregated into one SHARED lib so the loader's flat
+# dlsym(nullptr, ...) namespace and the exported surface stay unchanged.
 add_library(stub SHARED
-    # AppKit
-    src/appkit/NSAlert.h
-    src/appkit/NSAlert.m
-    src/appkit/NSApplication.h
-    src/appkit/NSApplication.m
-    src/appkit/NSCursor.h
-    src/appkit/NSCursor.m
-    src/appkit/NSEvent.h
-    src/appkit/NSEvent.m
-    src/appkit/NSImage.h
-    src/appkit/NSImage.m
-    src/appkit/NSImageView.h
-    src/appkit/NSImageView.m
-    src/appkit/NSProgressIndicator.h
-    src/appkit/NSProgressIndicator.m
-    src/appkit/NSNib.h
-    src/appkit/NSNib.m
-    src/appkit/NSOpenGLContext.h
-    src/appkit/NSOpenGLContext.m
-    src/appkit/NSPasteboard.h
-    src/appkit/NSPasteboard.m
-    src/appkit/NSResponder.h
-    src/appkit/NSResponder.m
-    src/appkit/NSTextInputContext.h
-    src/appkit/NSTextInputContext.m
-    src/appkit/NSScreen.h
-    src/appkit/NSScreen.m
-    src/appkit/NSView.h
-    src/appkit/NSView.m
-    src/appkit/NSWindow.h
-    src/appkit/NSWindow.m
-    src/appkit/NSWindowController.h
-    src/appkit/NSWindowController.m
-    src/appkit/NSWorkspace.h
-    src/appkit/NSWorkspace.m
-    src/appkit/SBApplication.h
-    src/appkit/SBApplication.m
+    src/common.h
 
-    # CoreGraphics
-    src/coregraphics/CG.h
-    src/coregraphics/CG.m
-    
-    # Misc IOKit and CoreSecurity
-    src/misc/CFURL.m
-    src/misc/Misc.m
-
-    # libSystem
-    src/system/stub_asl.c
-    src/system/stub_audio.c
-    src/system/stub_carbon.m
-    src/system/stub_dispatch.c
-    src/system/stub_fs.c
-    src/system/stub_io.c
-    src/system/stub_iokit.c
-    src/system/stub_kernel.c
-    src/system/stub_kernel_kqueue.c
-    src/system/stub_mach_vm.c
-    src/system/stub_math.c
-    src/system/stub_misc.c
-    src/system/stub_nvcg.c
-    src/system/stub_objc.S
-    src/system/stub_objc.c
-    src/system/stub_process.c
-    src/system/stub_pthread.c
-    src/system/stub_resolv.c
-    src/system/stub_riot.c
-    src/system/stub_securetransport.c
-    src/system/stub_rune.c
-    src/system/stub_socket.c
-    src/system/stub_str.c
-    src/system/stub_sys.c
-    src/system/stub_video.c
-    src/system/stub_xpc.c
+    $<TARGET_OBJECTS:stub-appkit>
+    $<TARGET_OBJECTS:stub-arch-x86_64>
+    $<TARGET_OBJECTS:stub-audiotoolbox>
+    $<TARGET_OBJECTS:stub-carbon>
+    $<TARGET_OBJECTS:stub-cg>
+    $<TARGET_OBJECTS:stub-corefoundation>
+    $<TARGET_OBJECTS:stub-coregraphics>
+    $<TARGET_OBJECTS:stub-foundation>
+    $<TARGET_OBJECTS:stub-game-riot>
+    $<TARGET_OBJECTS:stub-iokit>
+    $<TARGET_OBJECTS:stub-libsystem>
+    $<TARGET_OBJECTS:stub-objc-rt>
+    $<TARGET_OBJECTS:stub-scriptingbridge>
+    $<TARGET_OBJECTS:stub-security>
 )
-target_compile_options(stub PRIVATE -Wno-nullability-completeness -Wno-c23-extensions)
+set_target_properties(stub PROPERTIES LINKER_LANGUAGE OBJC)
 target_include_directories(stub PRIVATE src/)
 target_link_libraries(stub PUBLIC GNUStep sdl2 GL)
