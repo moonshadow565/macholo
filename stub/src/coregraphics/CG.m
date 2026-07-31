@@ -57,12 +57,23 @@ CGRect CGDisplayBounds(CGDirectDisplayID displayIndex) {
 CFArrayRef CGDisplayCopyAllDisplayModes(CGDirectDisplayID displayIndex, CFDictionaryRef options) {
 
   int modes = SDL_GetNumDisplayModes(displayIndex);
-  if (modes < 1) return NULL;
-  NSMutableArray *array = [NSMutableArray arrayWithCapacity:modes];
+  NSMutableArray *array = [NSMutableArray arrayWithCapacity:modes > 0 ? modes : 1];
   for (int i = 0; i < modes; ++i) {
     SDL_DisplayMode mode;
     if (SDL_GetDisplayMode(displayIndex, i, &mode)) continue;
 
+    CGDisplayMode *result = [CGDisplayMode new];
+    result->mode = mode;
+    [array addObject:result];
+  }
+  // Dummy backends (Xvfb) enumerate zero modes; the game feeds the result straight into
+  // CFArrayGetCount with no NULL/empty check, so guarantee at least one entry -- the
+  // current mode if SDL knows it, otherwise a plain 1024x768@60 fallback.
+  if ([array count] == 0) {
+    SDL_DisplayMode mode;
+    if (SDL_GetCurrentDisplayMode(displayIndex, &mode) && SDL_GetDesktopDisplayMode(displayIndex, &mode)) {
+      mode = (SDL_DisplayMode){SDL_PIXELFORMAT_RGB888, 1024, 768, 60, NULL};
+    }
     CGDisplayMode *result = [CGDisplayMode new];
     result->mode = mode;
     [array addObject:result];

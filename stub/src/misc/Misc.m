@@ -4,6 +4,7 @@
 #include <Foundation/NSString.h>
 #include <Foundation/NSURL.h>
 #include <Foundation/NSValue.h>
+#include <Foundation/NSUserDefaults.h>
 #include "CoreFoundation/CFArray.h"
 #include "CoreFoundation/CFBase.h"
 #include "CoreFoundation/CFDictionary.h"
@@ -20,6 +21,16 @@
 // so a pointer-valued NSValue yields its address as an integer, which is what Apple's
 // NSNumber-wrapped addresses would have produced. NSNumber defines its own versions, so
 // genuine numbers are unaffected (subclass methods win over this category on the base).
+// GNUstep's NSUserDefaults has no suite (-initWithSuiteName:) support. WC3 opens a suite
+// for its preferences; route it to the standard domain so reads/writes still work.
+@interface NSUserDefaults (MacholoSuite)
+@end
+@implementation NSUserDefaults (MacholoSuite)
+- (id)initWithSuiteName:(NSString *)suiteName {
+  return [self init];
+}
+@end
+
 @interface NSValue (MacholoNumeric)
 @end
 @implementation NSValue (MacholoNumeric)
@@ -133,9 +144,18 @@ CFDictionaryRef CFBundleCopyInfoDictionaryForURL(CFURLRef url) {
 }
 
 CFURLRef CFBundleCopySharedSupportURL(CFBundleRef bundle) {
-  // Contents/SharedSupport is not part of this game's layout (it keeps everything under
-  // Resources), and the caller treats a missing directory as "nothing to load".
-  return NULL;
+  // WC3 *does* ship Contents/SharedSupport (Blizzard Error.app), and it does NOT null-check
+  // the result -- it feeds the URL straight into CFURLGetFileSystemRepresentation and then
+  // CFReleases it, so returning NULL crashes in CFRelease(NULL). Build the real URL as
+  // <bundle>/Contents/SharedSupport. corebase's CFBundleCopyBundleURL hands back an NSURL
+  // (see CFURL.m), so append with NSURL to keep every URL in the process an NSURL.
+  if (bundle == NULL) return NULL;
+  CFURLRef bundleURL = CFBundleCopyBundleURL(bundle);
+  if (bundleURL == NULL) return NULL;
+  NSURL *shared =
+      [[(NSURL *)bundleURL URLByAppendingPathComponent:@"Contents"] URLByAppendingPathComponent:@"SharedSupport"];
+  CFRelease(bundleURL);
+  return shared ? (CFURLRef)[shared retain] : NULL;
 }
 
 uint32_t CFBundleGetVersionNumber(CFBundleRef bundle) {
