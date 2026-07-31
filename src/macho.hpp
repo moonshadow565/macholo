@@ -111,6 +111,10 @@ namespace macho {
     int64_t ordinal{};
     uint64_t offset{};
     int64_t value{};
+    // Offset of this binding's opcode entry within its bind stream. For the lazy bind
+    // stream this is exactly what a __stub_helper entry pushes before jumping to
+    // dyld_stub_binder, so the binder can find the binding again at run time.
+    uint64_t stream_offset{};
   };
 
   struct Export {

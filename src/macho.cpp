@@ -878,6 +878,8 @@ struct macho::raw::binary_reader {
       uint64_t offset{};
       int64_t value{};
     } state{};
+    auto const stream_total = size();
+    uint64_t entry_begin = 0;
     auto push = [&](size_t skip_extra) {
       results.push_back({
           .name = state.name,
@@ -885,6 +887,7 @@ struct macho::raw::binary_reader {
           .flags = state.flags,
           .ordinal = state.ordinal,
           .offset = segments[state.segment].vmaddr + state.offset,
+          .stream_offset = entry_begin,
       });
       state.offset += sizeof(uintptr_t);
       state.offset += skip_extra;
@@ -899,6 +902,9 @@ struct macho::raw::binary_reader {
         case BIND_OPCODE_DONE: {
           log_opcode("BIND_OPCODE_DONE");
           state = {};
+          // In the lazy bind stream DONE terminates each entry; whatever follows is the
+          // start of the next entry, which is the offset __stub_helper pushes for it.
+          entry_begin = stream_total - stream.size();
         } break;
         case BIND_OPCODE_SET_DYLIB_ORDINAL_IMM: {
           log_opcode("BIND_OPCODE_SET_DYLIB_ORDINAL_IMM(%u)", immediate);
