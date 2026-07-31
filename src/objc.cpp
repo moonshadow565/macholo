@@ -308,6 +308,12 @@ struct objc::raw::Converter {
     }
   }
 
+  void convert_category_list(slice<uintptr_t> categories) {
+    for (auto const org_category : categories) {
+      convert_category((category_t*)org_category);
+    }
+  }
+
   void convert_class_refs(slice<uintptr_t> klass_refs) {
     for (auto& ref : klass_refs) {
       if (auto const i = lookup_class_.find((class_t*)ref); i != lookup_class_.end()) {
@@ -528,6 +534,39 @@ private:
     }
   }
 
+  // Categories extend classes that already exist by the time we get here -- either a
+  // host class the binary imports (patched in place by import_classes) or a local class
+  // convert_class_list just registered. libobjc2 has no category-registration entry
+  // point for foreign metadata, so attach the members directly to the target class.
+  // class_replaceMethod (not class_addMethod) gives category semantics: add the method,
+  // or override the class's own definition if it has one.
+  void convert_category(category_t* category) {
+    if (!category) return;
+
+    auto const conv_klass = convert_class((class_t*)category->cls);
+    if (!conv_klass) {
+      warn_unresolved("unresolved objc category %s (target class missing)\n", category->name);
+      return;
+    }
+
+    log_objc("Converting category %s(%s)\n", class_getName(conv_klass), category->name);
+    add_category_methods(conv_klass, category->methods);
+    add_category_methods(object_getClass((id)conv_klass), category->static_methods);
+    convert_class_protocols(conv_klass, category->protocols);
+    convert_class_properties(conv_klass, category->properties);
+  }
+
+  void add_category_methods(Class conv_klass, list_t<method_t>* methods) {
+    if (!methods) return;
+    for (size_t i = 0; i != methods->count; ++i) {
+      auto const org_method = methods->get(i);
+      auto const types = convert_types(org_method->types);
+      auto const conv_sel = sel_registerTypedName_np(org_method->name, types.c_str());
+      class_replaceMethod(conv_klass, conv_sel, org_method->impl, types.c_str());
+      log_objc("\tMethod %s(%s)\n", org_method->name, types.c_str());
+    }
+  }
+
   void convert_class_methods(Class conv_klass, list_t<method_t>* methods) {
     if (!methods) return;
     for (size_t i = 0; i != methods->count; ++i) {
@@ -613,8 +652,8 @@ void objc::fixup_image(loader::Image* image) {
   converter.import_classes(image->object.bind_lazy);
   converter.convert_protocol_list(image->find_section<uintptr_t>("__objc_protolist"));
   converter.convert_class_list(image->find_section<uintptr_t>("__objc_classlist"));
+  converter.convert_category_list(image->find_section<uintptr_t>("__objc_catlist"));
   converter.convert_cfstrings(image->find_section<raw::cfstring_t>("__cfstring"));
-  // TODO: __objc_catlist
 
   converter.convert_protocol_refs(image->find_section<uintptr_t>("__objc_protorefs"));
   converter.convert_class_refs(image->find_section<uintptr_t>("__objc_classrefs"));
