@@ -433,3 +433,20 @@ Binding happens on worker threads through `dyld_stub_binder`, hence the mutex.
 5. Everything else in §2, then flip CI to `MACHOLO_STRICT_RESOLVE=1`.
 6. Settle the three INVESTIGATE rows and the §4 errno policy.
 
+
+---
+
+## 9. Post-implementation notes (2026-07-31)
+
+- Both games reach GAMELOOP under `MACHOLO_STRICT_RESOLVE=1` with zero unaudited binds.
+- **Rule for stub code**: thread-locals in libstub must use
+  `__attribute__((tls_model("initial-exec")))`. The general-dynamic path
+  (`__tls_get_addr`) returned a bad block on a guest-created thread (LCUChatClient,
+  16.3) while glibc's own static TLS worked fine on the same thread; IE compiles to
+  direct %fs-relative access and sidesteps the machinery. First hot-path TLS in this
+  lib was the errno slot, which is how it surfaced.
+- Follow-up: `$darwin$sigaction` (stub_sys.c) predates the signal-number table in
+  stub_signal.c and only special-cases SIGPIPE (13 on both sides) -- wire it through
+  macholo_signo_to_linux for non-SIGPIPE signals.
+- Follow-up: `$darwin$glob$INODE64`/`$darwin$globfree` pair works on a glibc
+  glob64_t, not Darwin's glob_t layout (pre-existing FIXME, now documented).

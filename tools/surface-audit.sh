@@ -66,18 +66,23 @@ awk '
     if (!weak) allweak[sym] = 0
     if (FILENAME ~ /surface-16\.3\//) in163[sym] = 1
     if (FILENAME ~ /surface-16\.15\//) in1615[sym] = 1
+    if (FILENAME ~ /surface-14\.8\//) in148[sym] = 1
   }
   END {
     for (sym in seen) {
       w = allweak[sym] ? "y" : "n"
-      if (sym in in163 && sym in in1615) db = "both"
-      else if (sym in in163) db = "16.3"
-      else db = "16.15"
+      db = ""
+      if (sym in in148) db = db "14.8,"
+      if (sym in in163) db = db "16.3,"
+      if (sym in in1615) db = db "16.15,"
+      sub(/,$/, "", db)
+      if (db == "14.8,16.3,16.15" || db == "16.3,16.15") db = (db ~ /14/) ? "all" : "both"
       print sym "\t" w "\t" db
     }
   }
 ' "$root/docs/surface-16.3/libSystem.txt" "$root/docs/surface-16.3/libresolv.txt" \
   "$root/docs/surface-16.15/libSystem.txt" "$root/docs/surface-16.15/libresolv.txt" \
+  "$root/docs/surface-14.8/libSystem.txt" \
   > "$tmp/demand.tsv"
 
 # ------------------------------------------------------ 2. apple attribution ---

@@ -213,3 +213,14 @@ __setjmp	libsystem_platform	SHIM	struct	CRITICAL / memory corruption. Darwin x86
 _longjmp	libsystem_platform	SHIM	struct	CRITICAL / memory corruption. Darwin x86_64 jmp_buf is int[_JBLEN] == int[37] == 148 bytes; glibc's struct __jmp_buf_tag is 200 bytes (64-byte __jmp_buf + int + 128-byte sigset). glibc's setjmp writes 52 bytes past the end of the guest's buffer. Mask semantics do agree (setjmp saves it, _setjmp does not). arm64 caveat: the sizes differ again there (Darwin 384 bytes vs glibc 320), so the shim must be per-arch -- longjmp must read back whatever the setjmp shim wrote
 _setjmp	libsystem_platform	SHIM	struct	CRITICAL / memory corruption. Darwin x86_64 jmp_buf is int[_JBLEN] == int[37] == 148 bytes; glibc's struct __jmp_buf_tag is 200 bytes (64-byte __jmp_buf + int + 128-byte sigset). glibc's setjmp writes 52 bytes past the end of the guest's buffer. Mask semantics do agree (setjmp saves it, _setjmp does not). arm64 caveat: the sizes differ again there (Darwin 384 bytes vs glibc 320), so the shim must be per-arch
 __Unwind_Resume	libunwind	FORWARD	-	NOT missing: libgcc_s.so.1 is a transitive DT_NEEDED of macholo and exports _Unwind_Resume@GCC_3.0, so dlsym(nullptr,..) already binds it -- surface-audit.sh only scanned libc/libm for the glibc lane. Prototype is the shared Level-1 Itanium unwind ABI. It is also unreachable today because $darwin$__cxa_throw panics. IF guest C++/ObjC exceptions are ever enabled this becomes SHIM/semantics: libgcc's unwinder finds FDEs through dl_iterate_phdr and cannot see Mach-O __eh_frame, so a real unwind would abort rather than resume
+_ceilf	libsystem_m	FORWARD		14.8-only demand; math family
+_floorf	libsystem_m	FORWARD		14.8-only demand; math family
+_fchmod	libsystem_kernel	FORWARD		14.8-only demand; mode_t bits identical
+_printf	libsystem_c	FORWARD		14.8-only demand; format ABI identical on x86_64
+_strlcat	libsystem_c	FORWARD		14.8-only demand; glibc >= 2.38 exports BSD strlcat natively
+_symlink	libsystem_kernel	FORWARD		14.8-only demand
+___vsnprintf_chk	libsystem_c	FORWARD		14.8-only demand; fortify arg order (s,maxlen,flags,slen,fmt,ap) matches glibc
+_wcsncmp	libsystem_c	FORWARD		14.8-only demand; wchar_t is 32-bit on both
+_wmemchr	libsystem_c	FORWARD		14.8-only demand; wchar_t is 32-bit on both
+_wmemcpy	libsystem_c	FORWARD		14.8-only demand; wchar_t is 32-bit on both
+_globfree	libsystem_c	SHIM	struct	14.8-only demand; glob_t layouts differ -- must pair with $darwin$glob$INODE64, which currently fills a glibc glob64_t (pre-existing FIXME)
