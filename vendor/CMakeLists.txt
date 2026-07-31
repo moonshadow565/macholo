@@ -7,6 +7,10 @@
 # Pins (git subtree --squash, no upstream history):
 #   vendor/libobjc2      libobjc2  v2.3         e877e782fb965c4e870d2ecf6aff58dddc6290ae
 #   vendor/gnustep-base  libs-base base-1_29_0  c6af8ef4bf44c2d3ed36a136f1799fe263978af4
+#   vendor/robin-map     robin-map v1.3.0        188c45569cc2a5dd768077c193830b51d33a5020
+#
+# The full inventory, with the reason each dep is vendored (or deliberately not),
+# lives in vendor/README.md.
 
 # ---------------------------------------------------------------------------
 # libobjc2 (CMake-native)
@@ -46,6 +50,14 @@ set(BUILD_STATIC_LIBOBJC OFF CACHE BOOL "libobjc2: also build libobjc.a" FORCE)
 # Do not let libobjc2 discover a gnustep-config and redirect its install rules
 # into a GNUstep domain; nothing installs from this tree.
 set(GNUSTEP_INSTALL_TYPE "NONE" CACHE STRING "libobjc2: install layout" FORCE)
+
+# tsl::robin_map comes from vendor/robin-map (header-only), not from the host's
+# robin-map-devel and NOT from libobjc2's FetchContent fallback, which would clone
+# from GitHub at configure time.  See vendor/robin-map-cmake/tsl-robin-mapConfig.cmake.
+# FORCE, because find_package caches <pkg>_DIR and a stale cache entry pointing at
+# /usr/share/cmake/tsl-robin-map would silently put us back on the host package.
+set(tsl-robin-map_DIR "${CMAKE_CURRENT_SOURCE_DIR}/robin-map-cmake"
+    CACHE PATH "vendored tsl-robin-map package config" FORCE)
 
 # libobjc2 assumes it is the top-level project; libobjc2-fixup.cmake undoes that
 # assumption from inside its own scope. See that file.
