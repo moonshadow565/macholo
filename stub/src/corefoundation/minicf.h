@@ -28,6 +28,7 @@
 
 #include "CoreFoundation/CFArray.h"
 #include "CoreFoundation/CFBase.h"
+#include "CoreFoundation/CFData.h"
 #include "CoreFoundation/CFDictionary.h"
 #include "CoreFoundation/CFString.h"
 #include "CoreFoundation/CFURL.h"
@@ -75,6 +76,11 @@ Boolean CFDictionaryContainsValue(CFDictionaryRef theDict, const void *value)
     DARWIN_SHADOW(CFDictionaryContainsValue);
 void CFDictionaryApplyFunction(CFDictionaryRef theDict, CFDictionaryApplierFunction applier, void *context)
     DARWIN_SHADOW(CFDictionaryApplyFunction);
+
+// --- CFData (CFData.m) ------------------------------------------------------------
+CFDataRef CFDataCreate(CFAllocatorRef allocator, const UInt8 *bytes, CFIndex length) DARWIN_SHADOW(CFDataCreate);
+const UInt8 *CFDataGetBytePtr(CFDataRef theData) DARWIN_SHADOW(CFDataGetBytePtr);
+CFIndex CFDataGetLength(CFDataRef theData) DARWIN_SHADOW(CFDataGetLength);
 
 // --- CFURL (CFURL.m) --------------------------------------------------------------
 CFURLRef CFURLCreateWithFileSystemPath(CFAllocatorRef allocator, CFStringRef filePath, CFURLPathStyle pathStyle,

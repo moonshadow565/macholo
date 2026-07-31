@@ -4,6 +4,9 @@ $darwin$CFArrayCreateMutable
 $darwin$CFArrayGetCount
 $darwin$CFArrayGetValueAtIndex
 $darwin$CFAutorelease
+$darwin$CFDataCreate
+$darwin$CFDataGetBytePtr
+$darwin$CFDataGetLength
 $darwin$CFDictionaryApplyFunction
 $darwin$CFDictionaryContainsValue
 $darwin$CFDictionaryCreate
