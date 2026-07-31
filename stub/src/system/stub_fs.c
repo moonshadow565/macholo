@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
 
 #include <common.h>
@@ -183,4 +184,48 @@ int copyfile(const char *from, const char *to, copyfile_state_t state, uint32_t 
   close(in);
   close(out);
   return ret;
+}
+
+// Darwin's struct statfs (the 64-bit-inode variant the game links against). Only the
+// free/total block counts matter -- the game uses them for a disk-space check before
+// writing settings/caches.
+#define $darwin$MFSTYPENAMELEN 16
+#define $darwin$MAXPATHLEN 1024
+
+struct $darwin$statfs64 {
+  uint32_t f_bsize;
+  int32_t f_iosize;
+  uint64_t f_blocks;
+  uint64_t f_bfree;
+  uint64_t f_bavail;
+  uint64_t f_files;
+  uint64_t f_ffree;
+  int32_t f_fsid[2];
+  $darwin$uid_t f_owner;
+  uint32_t f_type;
+  uint32_t f_flags;
+  uint32_t f_fssubtype;
+  char f_fstypename[$darwin$MFSTYPENAMELEN];
+  char f_mntonname[$darwin$MAXPATHLEN];
+  char f_mntfromname[$darwin$MAXPATHLEN];
+  uint32_t f_reserved[8];
+};
+
+int $darwin$statfs$INODE64(char const *path, struct $darwin$statfs64 *s) {
+  struct statvfs tmp;
+  if (statvfs(path, &tmp) != 0) return -1;
+  if (!s) return 0;
+  memset(s, 0, sizeof(*s));
+  s->f_bsize = (uint32_t)tmp.f_bsize;
+  s->f_iosize = (int32_t)tmp.f_bsize;
+  s->f_blocks = tmp.f_blocks;
+  s->f_bfree = tmp.f_bfree;
+  s->f_bavail = tmp.f_bavail;
+  s->f_files = tmp.f_files;
+  s->f_ffree = tmp.f_ffree;
+  s->f_owner = ($darwin$uid_t)getuid();
+  strncpy(s->f_fstypename, "hfs", sizeof(s->f_fstypename) - 1);
+  strncpy(s->f_mntonname, "/", sizeof(s->f_mntonname) - 1);
+  strncpy(s->f_mntfromname, path, sizeof(s->f_mntfromname) - 1);
+  return 0;
 }
