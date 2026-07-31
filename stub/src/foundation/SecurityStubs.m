@@ -1,0 +1,49 @@
+#include <Foundation/NSString.h>
+#include "CoreFoundation/CFArray.h"
+#include "CoreFoundation/CFBase.h"
+#include "CoreFoundation/CFDictionary.h"
+#include "CoreFoundation/CFString.h"
+
+// Neither CF nor NS surface (Security.framework's Sec* API); kept in foundation/ per the
+// Misc.m dissolution's leftover bucket. See docs/REFACTOR.md Stage 2b report -- this
+// arguably belongs alongside src/security/stub_securetransport.c, but that regrouping is
+// out of scope for this stage's pure code motion.
+
+// DATA: Security.framework attribute keys/values. On Apple these are CFStringRefs; the
+// game only ever uses them as keys/values in the query dictionary it hands to
+// SecItemCopyMatching (stubbed below), so toll-free-bridged constant NSStrings with the
+// real Apple string values are enough.
+CFStringRef kSecClass = (CFStringRef) @"class";
+CFStringRef kSecClassCertificate = (CFStringRef) @"cert";
+CFStringRef kSecMatchLimit = (CFStringRef) @"m_Limit";
+CFStringRef kSecMatchLimitAll = (CFStringRef) @"m_LimitAll";
+CFStringRef kSecMatchSearchList = (CFStringRef) @"m_SearchList";
+CFStringRef kSecMatchTrustedOnly = (CFStringRef) @"m_TrustedOnly";
+CFStringRef kSecReturnRef = (CFStringRef) @"r_Ref";
+
+// typedef struct CF_BRIDGED_TYPE(id) __SecKeychain *SecKeychainRef;
+// typedef struct CF_BRIDGED_TYPE(id) __SecCertificate *SecCertificateRef;
+typedef CFArrayRef SecCertificateRef;
+typedef CFArrayRef SecKeychainRef;
+
+// CODE:
+CFDataRef SecCertificateCopyData(SecCertificateRef certificate) {
+  // https://github.com/curl/curl/blob/1ccf1cd9936dfa382fe1f061b639de20170bc8ea/lib/vtls/sectransp.c#L2850
+
+  // FIXME: SecCertificateCopyData
+  // panic("SecCertificateCopyData");
+  return NULL;
+}
+
+OSStatus SecItemCopyMatching(CFDictionaryRef query, CFTypeRef *CF_RETURNS_RETAINED result) {
+  // https://github.com/curl/curl/blob/1ccf1cd9936dfa382fe1f061b639de20170bc8ea/lib/vtls/sectransp.c#L1093
+  // FIXME: SecItemCopyMatching
+  // panic("SecItemCopyMatching");
+  return 1;
+}
+
+OSStatus SecKeychainOpen(const char *pathName, SecKeychainRef *CF_RETURNS_RETAINED keychain) {
+  // FIXME: SecKeychainOpen
+  // panic("SecKeychainOpen");
+  return 1;
+}

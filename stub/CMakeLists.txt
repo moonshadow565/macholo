@@ -53,3 +53,9 @@ add_library(stub SHARED
 set_target_properties(stub PROPERTIES LINKER_LANGUAGE OBJC)
 target_include_directories(stub PRIVATE src/)
 target_link_libraries(stub PUBLIC GNUStep sdl2 GL)
+# See link-hidden-syms.map: keeps libstub.so's exported surface stable across the module
+# split by hiding GNUstep ObjC-runtime section-boundary boilerplate that would otherwise
+# leak into the dynamic symbol table once Misc.m's ObjC content moved into more than one
+# translation unit (docs/REFACTOR.md Stage 2b report).
+target_link_options(stub PRIVATE "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/link-hidden-syms.map")
+set_target_properties(stub PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/link-hidden-syms.map)

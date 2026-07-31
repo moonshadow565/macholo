@@ -1,0 +1,39 @@
+# Hides the GNUstep-2.1 ObjC runtime's per-TU boilerplate section-boundary symbols from
+# libstub.so's dynamic symbol table.
+#
+# clang emits, in *every* Objective-C translation unit compiled under
+# -fobjc-runtime=gnustep-2.1 (regardless of whether that TU defines any class/category/
+# selector), hidden-visibility references to __start___objc_*/__stop___objc_* boundary
+# symbols as part of its runtime-registration boilerplate. GNU ld auto-synthesizes these
+# on demand to satisfy the references, and empirically its choice of default (exported) vs.
+# hidden visibility for the synthesized symbol flips depending on the *total number* of
+# ObjC (.m) translation units in the link -- observed here as a hard edge between 19 and 20
+# TUs, unrelated to which specific files or symbols are involved (see docs/REFACTOR.md
+# Stage 2b report). Splitting Misc.m's ObjC-bearing content into more than one new .m file
+# crosses that edge and leaks these 16 symbols into the dynamic table, which the
+# tools/exports-diff.sh gate (correctly) flags as drift.
+#
+# These symbols carry no meaning outside their own section-boundary bookkeeping and are
+# never looked up by name (the runtime resolves them via the section entries, not dlsym),
+# so hiding them changes nothing observable; it only keeps the exported surface stable
+# across a pure build-graph refactor.
+{
+  global: *;
+  local:
+    __start___objc_cats;
+    __stop___objc_cats;
+    __start___objc_class_aliases;
+    __stop___objc_class_aliases;
+    __start___objc_class_refs;
+    __stop___objc_class_refs;
+    __start___objc_classes;
+    __stop___objc_classes;
+    __start___objc_constant_string;
+    __stop___objc_constant_string;
+    __start___objc_protocol_refs;
+    __stop___objc_protocol_refs;
+    __start___objc_protocols;
+    __stop___objc_protocols;
+    __start___objc_selectors;
+    __stop___objc_selectors;
+};

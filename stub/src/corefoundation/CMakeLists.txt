@@ -1,5 +1,6 @@
 # CoreFoundation — the CF surface (track-2 seam)
 add_library(stub-corefoundation OBJECT
+    CFBundle.m
     CFNotificationCenter.c
     CFURL.m
 )
