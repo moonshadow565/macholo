@@ -381,7 +381,7 @@ target_include_directories(gnustep-base-objs PRIVATE
     "${GSBASE_SRC}/Source/Additions"
     "${GSBASE_SRC}/Source/unix"
 )
-target_link_libraries(gnustep-base-objs PRIVATE objc PkgConfig::GSBASE_XML)
+target_link_libraries(gnustep-base-objs PRIVATE objc dispatch PkgConfig::GSBASE_XML)
 
 add_library(gnustep-base SHARED $<TARGET_OBJECTS:gnustep-base-objs>)
 set_target_properties(gnustep-base PROPERTIES
@@ -394,7 +394,8 @@ set_target_properties(gnustep-base PROPERTIES
 target_link_libraries(gnustep-base PRIVATE
     objc
     PkgConfig::GSBASE_XML
-    -lpthread -lffi -lz -lrt -ldl -ldispatch -lm
+    dispatch
+    -lpthread -lffi -lz -lrt -ldl -lm
 )
 target_link_options(gnustep-base PRIVATE -pthread -fexceptions -rdynamic)
 

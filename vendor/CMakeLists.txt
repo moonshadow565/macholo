@@ -8,6 +8,8 @@
 #   vendor/libobjc2      libobjc2  v2.3         e877e782fb965c4e870d2ecf6aff58dddc6290ae
 #   vendor/gnustep-base  libs-base base-1_29_0  c6af8ef4bf44c2d3ed36a136f1799fe263978af4
 #   vendor/robin-map     robin-map v1.3.0        188c45569cc2a5dd768077c193830b51d33a5020
+#   vendor/libdispatch   swift-corelibs-libdispatch swift-6.0.2-RELEASE
+#                                                137b6cf3060eae87d9b367c263619c2eca5d3aac
 #
 # The full inventory, with the reason each dep is vendored (or deliberately not),
 # lives in vendor/README.md.
@@ -103,6 +105,77 @@ target_include_directories(objc INTERFACE
 set(CMAKE_CXX_FLAGS "${_saved_CXX_FLAGS}")
 set(CMAKE_OBJCXX_FLAGS "${_saved_OBJCXX_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${_saved_SHARED_LINKER_FLAGS}")
+
+# ---------------------------------------------------------------------------
+# libdispatch (CMake-native)
+# ---------------------------------------------------------------------------
+# swift-corelibs-libdispatch at the tag matching Fedora 44's libdispatch-6.0.2.
+# gnustep-base uses it for real (7 binds in the boot trace: the run-loop
+# integration and NSOperation), and it is where <Block.h> comes from, so it must
+# come BEFORE gnustep-base-cmake.
+#
+# Placed after the libc++ flag block above is restored, on purpose: the reference
+# libdispatch.so needs only libBlocksRuntime.so + libc.so.6, and giving it a
+# libc++ DT_NEEDED would be the same class of mistake as the arc.mm landmine.
+#
+# Upstream option handling has three traps, all of them cache-level:
+#
+#  * include(CTest) does option(BUILD_TESTING ... ON), so tests/ would be
+#    configured and built. Pre-seed the cache entry so the option() is a no-op.
+#  * HAVE_OBJC comes from check_include_files(objc/objc-internal.h). If a host
+#    ever grew that header, src/CMakeLists.txt would add data.m, object.m and
+#    swift/DispatchStubs.cc -- and libdispatch's project() declares LANGUAGES C
+#    CXX only, so the `.m` files would land on whichever language currently owns
+#    the extension (see the .m pin below) with none of the ObjC flags. Fedora's
+#    own libdispatch is built without it (zero OS_dispatch_* symbols in
+#    /lib64/libdispatch.so), so pin it off and keep the build host-independent.
+#  * ENABLE_SWIFT would enable_language(Swift) globally.
+set(BUILD_TESTING OFF CACHE BOOL "libdispatch: build the test suite" FORCE)
+set(ENABLE_SWIFT OFF CACHE BOOL "libdispatch: Swift overlay" FORCE)
+set(ENABLE_DTRACE OFF CACHE BOOL "libdispatch: dtrace probes" FORCE)
+set(INSTALL_PRIVATE_HEADERS OFF CACHE BOOL "libdispatch: install private headers" FORCE)
+set(HAVE_OBJC FALSE CACHE INTERNAL "libdispatch: pinned off, see vendor/CMakeLists.txt")
+
+# THE SECOND C++-RUNTIME LANDMINE, same family as libobjc2's above. src/block.cpp
+# is the one C++ file in libdispatch and it uses no part of the C++ runtime -- the
+# reference /lib64/libdispatch.so needs only libBlocksRuntime.so and libc.so.6.
+# But a CMake target holding *any* CXX source gets CMAKE_CXX_IMPLICIT_LINK_LIBRARIES
+# (`stdc++;m` for clang here) appended to its link line even when the link language
+# is C, so libdispatch.so acquires a DT_NEEDED on libstdc++.so.6 -- a second
+# Itanium C++ ABI in a process whose ObjC<->C++ exception interop runs through
+# libc++abi. That is exactly the pairing docs/GNUSTEP-BUILD.md says not to create
+# (it is why -lsupc++ was dropped in 2026-07). Empty the list for this subtree only.
+set(_saved_CXX_IMPLICIT_LINK_LIBRARIES "${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES}")
+set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
+
+add_subdirectory(libdispatch EXCLUDE_FROM_ALL)
+
+set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "${_saved_CXX_IMPLICIT_LINK_LIBRARIES}")
+unset(_saved_CXX_IMPLICIT_LINK_LIBRARIES)
+
+# libdispatch's own CMakeLists does `set(CMAKE_LIBRARY_OUTPUT_DIRECTORY
+# ${CMAKE_BINARY_DIR})` -- a Windows PATH workaround that means "my own build
+# dir" but resolves to macholo's TOP-level build dir under add_subdirectory.
+# Same family of bug as libobjc2's CMAKE_SOURCE_DIR use. Put the two libraries
+# back where every other vendored target puts them.
+set_target_properties(dispatch BlocksRuntime PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/libdispatch"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/libdispatch")
+
+# block.cpp is the only C++ in libdispatch and it touches no C++ runtime -- the
+# reference libdispatch.so links neither libstdc++ nor libc++. Link with the C
+# driver so the C++ stdlib is never pulled in.
+set_target_properties(dispatch PROPERTIES LINKER_LANGUAGE C)
+
+# DispatchCompilerWarnings.cmake turns on -Werror -Wall -Wextra -Wsign-conversion
+# and friends, tuned for the clang of 2024. clang 22 fails the 6.0.2 sources on at
+# least -Wcast-function-type-mismatch (apply.c, data.c cast a dispatch_function_t
+# to a differently-shaped applier on purpose) and -Wsign-conversion
+# (event/event_epoll.c). Blanket-demote rather than chase the list: this is
+# upstream code we do not maintain, and it is the same call deps/Containerfile's
+# RELAX_CFLAGS made for gnustep-base. Warnings still print.
+target_compile_options(dispatch PRIVATE -Wno-error)
+target_compile_options(BlocksRuntime PRIVATE -Wno-error)
 
 # ---------------------------------------------------------------------------
 # gnustep-base (hand-written CMake over the vendored sources)
