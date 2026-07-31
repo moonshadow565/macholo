@@ -4,6 +4,11 @@ $darwin$CFArrayCreateMutable
 $darwin$CFArrayGetCount
 $darwin$CFArrayGetValueAtIndex
 $darwin$CFAutorelease
+$darwin$CFBundleCopyBundleURL
+$darwin$CFBundleCreate
+$darwin$CFBundleGetIdentifier
+$darwin$CFBundleGetInfoDictionary
+$darwin$CFBundleGetMainBundle
 $darwin$CFDataCreate
 $darwin$CFDataGetBytePtr
 $darwin$CFDataGetLength

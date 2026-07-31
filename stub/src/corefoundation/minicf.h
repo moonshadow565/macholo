@@ -28,6 +28,7 @@
 
 #include "CoreFoundation/CFArray.h"
 #include "CoreFoundation/CFBase.h"
+#include "CoreFoundation/CFBundle.h"
 #include "CoreFoundation/CFData.h"
 #include "CoreFoundation/CFDate.h"
 #include "CoreFoundation/CFDictionary.h"
@@ -45,6 +46,15 @@ CFTypeRef CFRetain(CFTypeRef cf) DARWIN_SHADOW(CFRetain);
 void CFRelease(CFTypeRef cf) DARWIN_SHADOW(CFRelease);
 CFTypeRef CFAutorelease(CFTypeRef cf) DARWIN_SHADOW(CFAutorelease);
 CFTypeRef CFMakeCollectable(CFTypeRef cf) DARWIN_SHADOW(CFMakeCollectable);
+
+// --- CFBundle (CFBundle.m) -------------------------------------------------------
+// CFBundleRef == NSBundle *. Shadowed as one atomic group: the game round-trips
+// bundle refs between these entry points.
+CFBundleRef CFBundleGetMainBundle(void) DARWIN_SHADOW(CFBundleGetMainBundle);
+CFStringRef CFBundleGetIdentifier(CFBundleRef bundle) DARWIN_SHADOW(CFBundleGetIdentifier);
+CFBundleRef CFBundleCreate(CFAllocatorRef allocator, CFURLRef bundleURL) DARWIN_SHADOW(CFBundleCreate);
+CFURLRef CFBundleCopyBundleURL(CFBundleRef bundle) DARWIN_SHADOW(CFBundleCopyBundleURL);
+CFDictionaryRef CFBundleGetInfoDictionary(CFBundleRef bundle) DARWIN_SHADOW(CFBundleGetInfoDictionary);
 
 // --- CFString (CFString.m) -------------------------------------------------------
 CFStringRef CFStringCreateWithBytes(CFAllocatorRef alloc, const UInt8 *bytes, CFIndex numBytes,
