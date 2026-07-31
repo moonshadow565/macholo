@@ -228,6 +228,13 @@ uint64_t mach_absolute_time() {
   return ts.tv_nsec + ts.tv_sec * 1000000000;
 }
 
+// Darwin's coarse clock. mach_absolute_time already reports nanoseconds here
+// (stub_kernel.c), so the "approximate" variant is the same number.
+uint64_t $darwin$mach_approximate_time(void) {
+  extern uint64_t mach_absolute_time(void);
+  return mach_absolute_time();
+}
+
 #define SEM_TABLE_MAX 4096
 // FIXME: replace lock with atomic
 static pthread_mutex_t _sem_table_lock = PTHREAD_MUTEX_INITIALIZER;

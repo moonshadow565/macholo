@@ -1,14 +1,15 @@
 # libSystem — the mach/BSD/libc surface
 add_library(stub-libsystem OBJECT
     stub_asl.c
+    stub_compat.c
     stub_dispatch.c
     stub_fs.c
     stub_io.c
     stub_kernel.c
     stub_kernel_kqueue.c
     stub_mach_vm.c
+    stub_malloc.c
     stub_math.c
-    stub_misc.c
     stub_process.c
     stub_pthread.c
     stub_resolv.c

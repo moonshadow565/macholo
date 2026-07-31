@@ -185,6 +185,44 @@ int $darwin$sysctlbyname(const char *name, void *oldp, size_t *oldlenp, const vo
   return -1;
 }
 
+// The legacy raw sysctl(2) MIB interface. Only the handful of MIBs anyone still asks
+// for are recognised; everything else reports "no such node" like a real kernel.
+#define $darwin$CTL_KERN 1
+#define $darwin$CTL_HW 6
+#define $darwin$KERN_PROC 14
+#define $darwin$KERN_PROC_PID 1
+#define $darwin$HW_NCPU 3
+#define $darwin$HW_PAGESIZE 7
+#define $darwin$HW_MEMSIZE 24
+#define $darwin$KERN_MAXFILESPERPROC 21
+#define $darwin$KERN_OSVERSION 65
+
+int $darwin$sysctl(int *name, unsigned namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen) {
+  if (!name || namelen < 2) {
+    errno = EINVAL;
+    return -1;
+  }
+  if (name[0] == $darwin$CTL_HW && name[1] == $darwin$HW_NCPU)
+    return $darwin$sysctlbyname("hw.ncpu", oldp, oldlenp, newp, newlen);
+  if (name[0] == $darwin$CTL_HW && name[1] == $darwin$HW_MEMSIZE)
+    return $darwin$sysctlbyname("hw.memsize", oldp, oldlenp, newp, newlen);
+  if (name[0] == $darwin$CTL_HW && name[1] == $darwin$HW_PAGESIZE)
+    return $darwin$sysctlbyname("hw.pagesize", oldp, oldlenp, newp, newlen);
+  if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_MAXFILESPERPROC)
+    return $darwin$sysctlbyname("kern.maxfilesperproc", oldp, oldlenp, newp, newlen);
+  if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_OSVERSION)
+    return $darwin$sysctlbyname("kern.osversion", oldp, oldlenp, newp, newlen);
+  // KERN_PROC/KERN_PROC_PID is the "am I being debugged?" probe (it reads P_TRACED out
+  // of the returned kinfo_proc). Report a zeroed record: not traced.
+  if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_PROC) {
+    if (oldp && oldlenp) memset(oldp, 0, *oldlenp);
+    return 0;
+  }
+  fprintf(stderr, "[sysctl] unhandled mib: %d.%d\n", name[0], name[1]);
+  errno = ENOENT;
+  return -1;
+}
+
 void $darwin$uuid_generate(uint32_t out[2]) {
   // NOTE: don't really care in particular ?
   static uint64_t ticking = 0;
@@ -192,6 +230,10 @@ void $darwin$uuid_generate(uint32_t out[2]) {
   out[1] = random();
   out[2] = random();
   out[3] = ++ticking;
+}
+
+void $darwin$uuid_clear(uint8_t uuid[16]) {
+  if (uuid) memset(uuid, 0, 16);
 }
 
 int $darwin$uname(struct $darwin$utsname *buf) {

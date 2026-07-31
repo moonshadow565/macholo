@@ -1,13 +1,9 @@
-#include <errno.h>
-#include <malloc.h>
 #include <pwd.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <common.h>
-
-extern int $darwin$sysctlbyname(const char *name, void *oldp, size_t *oldlenp, const void *newp, size_t newlen);
 
 struct $darwin$passwd {
   char *pw_name;    /* user name */
@@ -48,66 +44,9 @@ int backtrace_from_fp(void *startfp, void **array, int size) {
   return 0;
 }
 
-// ---------------------------------------------------------------------------
-// Odds and ends WC3 imports from libSystem.
-// ---------------------------------------------------------------------------
-
-// The legacy raw sysctl(2) MIB interface. Only the handful of MIBs anyone still asks
-// for are recognised; everything else reports "no such node" like a real kernel.
-#define $darwin$CTL_KERN 1
-#define $darwin$CTL_HW 6
-#define $darwin$KERN_PROC 14
-#define $darwin$KERN_PROC_PID 1
-#define $darwin$HW_NCPU 3
-#define $darwin$HW_PAGESIZE 7
-#define $darwin$HW_MEMSIZE 24
-#define $darwin$KERN_MAXFILESPERPROC 21
-#define $darwin$KERN_OSVERSION 65
-
-int $darwin$sysctl(int *name, unsigned namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen) {
-  if (!name || namelen < 2) {
-    errno = EINVAL;
-    return -1;
-  }
-  if (name[0] == $darwin$CTL_HW && name[1] == $darwin$HW_NCPU)
-    return $darwin$sysctlbyname("hw.ncpu", oldp, oldlenp, newp, newlen);
-  if (name[0] == $darwin$CTL_HW && name[1] == $darwin$HW_MEMSIZE)
-    return $darwin$sysctlbyname("hw.memsize", oldp, oldlenp, newp, newlen);
-  if (name[0] == $darwin$CTL_HW && name[1] == $darwin$HW_PAGESIZE)
-    return $darwin$sysctlbyname("hw.pagesize", oldp, oldlenp, newp, newlen);
-  if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_MAXFILESPERPROC)
-    return $darwin$sysctlbyname("kern.maxfilesperproc", oldp, oldlenp, newp, newlen);
-  if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_OSVERSION)
-    return $darwin$sysctlbyname("kern.osversion", oldp, oldlenp, newp, newlen);
-  // KERN_PROC/KERN_PROC_PID is the "am I being debugged?" probe (it reads P_TRACED out
-  // of the returned kinfo_proc). Report a zeroed record: not traced.
-  if (name[0] == $darwin$CTL_KERN && name[1] == $darwin$KERN_PROC) {
-    if (oldp && oldlenp) memset(oldp, 0, *oldlenp);
-    return 0;
-  }
-  fprintf(stderr, "[sysctl] unhandled mib: %d.%d\n", name[0], name[1]);
-  errno = ENOENT;
-  return -1;
-}
-
-void $darwin$uuid_clear(uint8_t uuid[16]) {
-  if (uuid) memset(uuid, 0, 16);
-}
-
-size_t $darwin$malloc_size(void const *ptr) {
-  return ptr ? malloc_usable_size((void *)ptr) : 0;
-}
-
 char ***$darwin$_NSGetEnviron(void) {
   extern char **environ;
   return &environ;
-}
-
-// Darwin's coarse clock. mach_absolute_time already reports nanoseconds here
-// (stub_kernel.c), so the "approximate" variant is the same number.
-uint64_t $darwin$mach_approximate_time(void) {
-  extern uint64_t mach_absolute_time(void);
-  return mach_absolute_time();
 }
 
 int $darwin$proc_name(int pid, void *buffer, uint32_t buffersize) {
@@ -183,28 +122,4 @@ void *$darwin$NSLookupSymbolInModule(void *module, const char *symbolName) {
 
 void *$darwin$NSAddressOfSymbol(void *symbol) {
   return NULL;
-}
-
-// CFNotificationCenter: the game registers a handful of observers (e.g. workspace/app
-// lifecycle) but nothing under macholo ever posts to these centers, so a single opaque
-// non-NULL center plus no-op add/remove is enough to get past startup. Returning NULL
-// here would make the game's CFNotificationCenterAddObserver dereference it and crash.
-static char macholo_cf_local_center;
-static char macholo_cf_distributed_center;
-
-void *CFNotificationCenterGetLocalCenter(void) {
-  return &macholo_cf_local_center;
-}
-
-void *CFNotificationCenterGetDistributedCenter(void) {
-  return &macholo_cf_distributed_center;
-}
-
-void CFNotificationCenterAddObserver(void *center, const void *observer, void *callBack, const void *name,
-                                     const void *object, long suspensionBehavior) {
-  // NOTE: no center under macholo ever posts, so registration is a no-op.
-}
-
-void CFNotificationCenterRemoveObserver(void *center, const void *observer, const void *name, const void *object) {
-  // NOTE: paired with the no-op AddObserver above.
 }
