@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <cerrno>
 #include <cstdint>
@@ -271,8 +272,64 @@ void loader::Image::init() {
 
 extern "C" void GSInitializeProcess(int argc, char **argv, char **envp);
 
+namespace {
+  // Darwin comm page. macOS pins a kernel-shared page at a fixed virtual address and
+  // inlines mach_absolute_time() as a direct read of it rather than a call -- so no import
+  // stub can intercept it. WC3's obfuscated timing/anti-tamper routine does exactly this
+  // (movabs $0x7fffffe00068 -> ...), faulting because macholo never maps the page.
+  //
+  // The read has two arms, keyed on the "approximate time supported" byte at +0x88:
+  //  - supported  -> take the fast path: return the u64 at +0x80 (a mach time the kernel
+  //                  bumps continuously); this is the arm real hardware uses.
+  //  - unsupported-> fall back to a rdtsc+scale/shift/base computation.
+  // We enable the fast path and keep +0x80 advancing from CLOCK_MONOTONIC via a tiny
+  // updater thread, so the game sees a real, monotonically increasing clock.
+  constexpr uintptr_t COMM_PAGE_BASE = 0x00007fffffe00000ull;
+  constexpr size_t COMM_PAGE_SIZE = 0x1000;
+  constexpr uintptr_t COMM_PAGE_APPROX_TIME = COMM_PAGE_BASE + 0x80;
+  constexpr uintptr_t COMM_PAGE_APPROX_TIME_SUPPORTED = COMM_PAGE_BASE + 0x88;
+
+  uint64_t monotonic_ns() {
+    struct timespec ts;
+    ::clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+  }
+
+  void* comm_page_updater(void*) {
+    for (;;) {
+      *(volatile uint64_t*)COMM_PAGE_APPROX_TIME = monotonic_ns();
+      struct timespec nap = {0, 250000};  // 250us
+      ::nanosleep(&nap, nullptr);
+    }
+    return nullptr;
+  }
+
+  void map_comm_page() {
+    void* p = ::mmap((void*)COMM_PAGE_BASE, COMM_PAGE_SIZE, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    if (p == MAP_FAILED) {
+      fprintf(stderr, "warning: could not map comm page at %p: %s\n", (void*)COMM_PAGE_BASE, strerror(errno));
+      return;
+    }
+    auto at = [&](uintptr_t off) { return (char*)COMM_PAGE_BASE + off; };
+    // Also fill the rdtsc-path fields (scale=2^32-1, shift=0, generation=1) so that arm,
+    // if ever taken, still reads a sane, monotonic value rather than garbage.
+    *(uint64_t*)at(0x50) = 0;                    // tsc_base
+    *(uint32_t*)at(0x58) = 0xffffffffu;          // scale
+    *(uint32_t*)at(0x5c) = 0;                    // shift
+    *(uint64_t*)at(0x60) = 0;                    // ns_base
+    *(uint32_t*)at(0x68) = 1;                    // generation (nonzero, stable)
+    *(uint64_t*)at(0x80) = monotonic_ns();       // approximate mach time
+    *(uint8_t*)at(0x88) = 1;                     // approximate time supported -> fast path
+    // Page must stay writable for the updater thread; the game only ever reads it.
+    pthread_t tid;
+    if (pthread_create(&tid, nullptr, comm_page_updater, nullptr) == 0) pthread_detach(tid);
+  }
+}  // namespace
+
 int loader::Image::run(int argc, char** argv, char** env) {
   const auto do_debug_break = !!getenv("MACHOLO_DEBUG_BREAK");
+  map_comm_page();
   GSInitializeProcess(argc, argv, env);
 
   auto const start = (int (*)(int argc, char** argv, char** env))(object.entry->offset + object.text_segment()->vmaddr + slide);
