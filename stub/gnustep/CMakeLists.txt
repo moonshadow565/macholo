@@ -15,7 +15,6 @@ target_link_libraries(GNUStep INTERFACE
     -lpthread
     -lobjc
     -lgnustep-base
-    -lgnustep-corebase
 )
 target_compile_options(GNUStep INTERFACE
     -DGNUSTEP

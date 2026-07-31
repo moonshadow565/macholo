@@ -5,6 +5,7 @@
 #include <CoreFoundation/CFDate.h>
 #include <CoreFoundation/CFDictionary.h>
 #include <SDL2/SDL_rect.h>
+#include "corefoundation/minicf.h"
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_stdinc.h>
