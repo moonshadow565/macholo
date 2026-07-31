@@ -10,6 +10,25 @@
   NSString *_informativeText;
   NSImage *_icon;
   long _buttonCount;
+  id _accessoryView;
+}
+
+// The alert is only ever logged and dismissed (runModal returns the default button), so
+// the accessory view / window / layout plumbing just needs to exist: without these the
+// game hits doesNotRecognizeSelector, and its own @catch handler then walks the
+// exception's callStackReturnAddresses -- which GNUstep hands back as GSPointerValue
+// (^v) NSValues rather than Apple's NSNumbers -- calling -unsignedIntegerValue on each
+// and raising a second, uncaught exception that aborts the process.
+- (id)accessoryView {
+  return _accessoryView;
+}
+- (void)setAccessoryView:(id)value {
+  _accessoryView = [value retain];
+}
+- (void)layout {
+}
+- (id)window {
+  return nil;
 }
 
 - (NSString *)informativeText {
